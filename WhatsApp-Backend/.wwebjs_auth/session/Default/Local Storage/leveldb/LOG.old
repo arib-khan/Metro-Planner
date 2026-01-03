@@ -1,0 +1,6 @@
+2026/01/03-01:08:43.628 3404 Reusing MANIFEST C:\Users\hp\Desktop\New folder (6)\WhatsApp\.wwebjs_auth\session\Default\Local Storage\leveldb/MANIFEST-000001
+2026/01/03-01:08:43.629 3404 Recovering log #9
+2026/01/03-01:08:43.634 3404 Reusing old log C:\Users\hp\Desktop\New folder (6)\WhatsApp\.wwebjs_auth\session\Default\Local Storage\leveldb/000009.log 
+2026/01/03-01:10:51.983 11cc Level-0 table #13: started
+2026/01/03-01:10:52.000 11cc Level-0 table #13: 14569 bytes OK
+2026/01/03-01:10:52.007 11cc Delete type=0 #9

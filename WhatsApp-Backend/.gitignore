@@ -1,0 +1,33 @@
+# Node modules
+node_modules/
+
+# Environment files
+.env
+.env.local
+
+# Service account / secrets
+serviceAccountKey.json
+*.pem
+*.key
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Temp / runtime files
+temp/
+tmp/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor / IDE
+.vscode/
+.idea/
+
+# Test & local files
+text.txt

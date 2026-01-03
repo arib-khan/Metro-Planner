@@ -1,0 +1,8 @@
+2026/01/03-20:20:36.537 3b6c Reusing MANIFEST C:\Users\hp\Desktop\Metro-Planner\WhatsApp-Backend\.wwebjs_auth\session-IajPkmaPordpGLXfj1pZVegq19q1\Default\Local Storage\leveldb/MANIFEST-000001
+2026/01/03-20:20:36.538 3b6c Recovering log #3
+2026/01/03-20:20:36.538 3b6c Level-0 table #3: started
+2026/01/03-20:20:36.545 3b6c Level-0 table #3: 17441 bytes OK
+2026/01/03-20:20:36.545 3b6c Recovering log #4
+2026/01/03-20:20:36.546 3b6c Reusing old log C:\Users\hp\Desktop\Metro-Planner\WhatsApp-Backend\.wwebjs_auth\session-IajPkmaPordpGLXfj1pZVegq19q1\Default\Local Storage\leveldb/000004.log 
+2026/01/03-20:20:36.548 3b6c Delete type=0 #3
+2026/01/03-20:20:36.548 3b6c Delete type=2 #5
