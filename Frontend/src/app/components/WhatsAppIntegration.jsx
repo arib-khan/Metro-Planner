@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { MessageSquare, CheckCircle, XCircle, QrCode, Smartphone, RefreshCw, AlertCircle, Wifi, WifiOff, Users, LogOut } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const WhatsAppIntegration = () => {
-  const { user } = useAuth(); // Get current logged-in user
+  const { user } = useAuth();
   const [whatsappStatus, setWhatsappStatus] = useState({
     ready: false,
     hasQR: false,
@@ -16,50 +16,61 @@ const WhatsAppIntegration = () => {
   const [isOnline, setIsOnline] = useState(true);
   const [initializing, setInitializing] = useState(false);
   const [allConnections, setAllConnections] = useState([]);
+  const [retryCount, setRetryCount] = useState(0);
+  
+  const pollingIntervalRef = useRef(null);
+  const lastSuccessfulFetchRef = useRef(Date.now());
 
+  // Use environment variable with fallback
   const API_URL = process.env.NEXT_PUBLIC_WHATSAPP_API || 'http://localhost:5000';
 
-  useEffect(() => {
-    if (user) {
-      checkWhatsAppStatus();
-      loadAllConnections();
-      const interval = setInterval(() => {
-        checkWhatsAppStatus();
-        loadAllConnections();
-      }, 5000);
+  // Fetch with timeout and retry logic
+  const fetchWithTimeout = useCallback(async (url, options = {}, timeout = 15000) => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
 
-      const handleOnline = () => setIsOnline(true);
-      const handleOffline = () => setIsOnline(false);
-      
-      window.addEventListener('online', handleOnline);
-      window.addEventListener('offline', handleOffline);
-
-      return () => {
-        clearInterval(interval);
-        window.removeEventListener('online', handleOnline);
-        window.removeEventListener('offline', handleOffline);
-      };
+    try {
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+        headers: {
+          'Content-Type': 'application/json',
+          ...options.headers
+        }
+      });
+      clearTimeout(timeoutId);
+      return response;
+    } catch (error) {
+      clearTimeout(timeoutId);
+      if (error.name === 'AbortError') {
+        throw new Error('Request timeout - server took too long to respond');
+      }
+      throw error;
     }
-  }, [user]);
+  }, []);
 
-  const checkWhatsAppStatus = async () => {
+  const checkWhatsAppStatus = useCallback(async () => {
     if (!user || !isOnline) {
       setLoading(false);
       return;
     }
 
     try {
-      const response = await fetch(`${API_URL}/api/whatsapp/status/${user.uid}`, {
-        signal: AbortSignal.timeout(10000)
-      });
+      const response = await fetchWithTimeout(
+        `${API_URL}/api/whatsapp/status/${user.uid}`,
+        {},
+        10000
+      );
       
       if (!response.ok) {
-        throw new Error(`Server responded with ${response.status}`);
+        throw new Error(`Server error: ${response.status} ${response.statusText}`);
       }
       
       const data = await response.json();
       setWhatsappStatus(data);
       setError(null);
+      setRetryCount(0);
+      lastSuccessfulFetchRef.current = Date.now();
       
       if (data.hasQR && !data.ready) {
         fetchQRCode();
@@ -70,16 +81,35 @@ const WhatsAppIntegration = () => {
       setLoading(false);
     } catch (error) {
       console.error('Error checking WhatsApp status:', error);
-      setError(error.message);
+      
+      // Set user-friendly error messages
+      let errorMessage = 'Unable to connect to WhatsApp server';
+      
+      if (error.message.includes('timeout')) {
+        errorMessage = 'Server is taking too long to respond. Please try again.';
+      } else if (error.message.includes('Failed to fetch')) {
+        errorMessage = 'Cannot reach WhatsApp server. Check if server is running.';
+      } else if (error.message.includes('Server error')) {
+        errorMessage = error.message;
+      }
+      
+      setError(errorMessage);
       setLoading(false);
+      
+      // Exponential backoff for retries
+      setRetryCount(prev => prev + 1);
     }
-  };
+  }, [user, isOnline, API_URL, fetchWithTimeout]);
 
-  const fetchQRCode = async () => {
+  const fetchQRCode = useCallback(async () => {
     if (!user) return;
 
     try {
-      const response = await fetch(`${API_URL}/api/whatsapp/qr/${user.uid}`);
+      const response = await fetchWithTimeout(
+        `${API_URL}/api/whatsapp/qr/${user.uid}`,
+        {},
+        10000
+      );
       
       if (!response.ok) {
         throw new Error('Failed to fetch QR code');
@@ -93,44 +123,114 @@ const WhatsAppIntegration = () => {
     } catch (error) {
       console.error('Error fetching QR code:', error);
     }
-  };
+  }, [user, API_URL, fetchWithTimeout]);
 
-  const loadAllConnections = async () => {
+  const loadAllConnections = useCallback(async () => {
     try {
-      const response = await fetch(`${API_URL}/api/whatsapp/connections`);
+      const response = await fetchWithTimeout(
+        `${API_URL}/api/whatsapp/connections`,
+        {},
+        10000
+      );
+      
       if (response.ok) {
         const data = await response.json();
         setAllConnections(data.connections || []);
       }
     } catch (error) {
       console.error('Error loading connections:', error);
+      // Don't show error to user for this secondary feature
     }
-  };
+  }, [API_URL, fetchWithTimeout]);
+
+  // Smart polling with exponential backoff
+  useEffect(() => {
+    if (!user) return;
+
+    checkWhatsAppStatus();
+    loadAllConnections();
+
+    // Clear any existing interval
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+    }
+
+    // Dynamic polling interval based on retry count
+    const baseInterval = 10000; // 10 seconds base
+    const maxInterval = 60000; // Max 60 seconds
+    const interval = Math.min(baseInterval * Math.pow(1.5, retryCount), maxInterval);
+
+    pollingIntervalRef.current = setInterval(() => {
+      // Only poll if last successful fetch was recent (within 2 minutes)
+      const timeSinceLastSuccess = Date.now() - lastSuccessfulFetchRef.current;
+      if (timeSinceLastSuccess < 120000) {
+        checkWhatsAppStatus();
+        loadAllConnections();
+      }
+    }, interval);
+
+    const handleOnline = () => {
+      setIsOnline(true);
+      setError(null);
+      setRetryCount(0);
+      checkWhatsAppStatus();
+    };
+    
+    const handleOffline = () => {
+      setIsOnline(false);
+      setError('You are offline. Please check your internet connection.');
+    };
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+      }
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [user, checkWhatsAppStatus, loadAllConnections, retryCount]);
 
   const initializeWhatsApp = async () => {
     if (!user) return;
 
     setInitializing(true);
+    setError(null);
+    
     try {
-      const response = await fetch(`${API_URL}/api/whatsapp/initialize`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: user.uid,
-          userEmail: user.email,
-          userName: user.displayName || user.email.split('@')[0]
-        })
-      });
+      const response = await fetchWithTimeout(
+        `${API_URL}/api/whatsapp/initialize`,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            userId: user.uid,
+            userEmail: user.email,
+            userName: user.displayName || user.email.split('@')[0]
+          })
+        },
+        30000 // 30 second timeout for initialization
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Server error: ${response.status}`);
+      }
 
       const data = await response.json();
       
       if (data.success) {
-        setTimeout(checkWhatsAppStatus, 2000);
+        setTimeout(() => {
+          checkWhatsAppStatus();
+          setRetryCount(0);
+        }, 2000);
       } else {
-        setError(data.error);
+        setError(data.error || 'Failed to initialize WhatsApp');
       }
     } catch (error) {
-      setError(error.message);
+      console.error('Error initializing WhatsApp:', error);
+      setError(error.message || 'Failed to initialize WhatsApp. Please try again.');
     } finally {
       setInitializing(false);
     }
@@ -142,19 +242,34 @@ const WhatsAppIntegration = () => {
     if (!confirm('Are you sure you want to disconnect your WhatsApp?')) return;
 
     try {
-      const response = await fetch(`${API_URL}/api/whatsapp/disconnect/${user.uid}`, {
-        method: 'POST'
-      });
+      const response = await fetchWithTimeout(
+        `${API_URL}/api/whatsapp/disconnect/${user.uid}`,
+        { method: 'POST' },
+        10000
+      );
 
       const data = await response.json();
       
       if (data.success) {
         setWhatsappStatus({ ready: false, hasQR: false, info: null });
         setQrCode(null);
+        setError(null);
+      } else {
+        throw new Error(data.error || 'Failed to disconnect');
       }
     } catch (error) {
       console.error('Error disconnecting:', error);
+      setError('Failed to disconnect WhatsApp. Please try again.');
     }
+  };
+
+  // Manual retry with reset
+  const handleRetry = () => {
+    setError(null);
+    setRetryCount(0);
+    lastSuccessfulFetchRef.current = Date.now();
+    checkWhatsAppStatus();
+    loadAllConnections();
   };
 
   if (!user) {
@@ -178,6 +293,24 @@ const WhatsAppIntegration = () => {
     );
   }
 
+  if (!isOnline) {
+    return (
+      <div className="bg-white rounded-lg shadow-sm border border-orange-200 p-6 mb-6">
+        <div className="flex items-start">
+          <WifiOff className="h-6 w-6 text-orange-600 mr-3 mt-0.5 shrink-0" />
+          <div className="flex-1">
+            <h3 className="text-lg font-semibold text-orange-900 mb-2">
+              You're Offline
+            </h3>
+            <p className="text-sm text-orange-700 mb-4">
+              Please check your internet connection to use WhatsApp features.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (error) {
     return (
       <div className="bg-white rounded-lg shadow-sm border border-red-200 p-6 mb-6">
@@ -188,13 +321,28 @@ const WhatsAppIntegration = () => {
               Connection Error
             </h3>
             <p className="text-sm text-red-700 mb-4">{error}</p>
-            <button
-              onClick={checkWhatsAppStatus}
-              className="px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg text-sm font-medium transition-colors"
-            >
-              <RefreshCw className="h-4 w-4 inline mr-2" />
-              Retry
-            </button>
+            {retryCount > 0 && (
+              <p className="text-xs text-red-600 mb-4">
+                Retry attempt {retryCount} - Next retry in {Math.min(10 * Math.pow(1.5, retryCount), 60)} seconds
+              </p>
+            )}
+            <div className="flex gap-3">
+              <button
+                onClick={handleRetry}
+                className="px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg text-sm font-medium transition-colors"
+              >
+                <RefreshCw className="h-4 w-4 inline mr-2" />
+                Retry Now
+              </button>
+              <a
+                href={API_URL + '/health'}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition-colors"
+              >
+                Check Server Status
+              </a>
+            </div>
           </div>
         </div>
       </div>
@@ -232,7 +380,7 @@ const WhatsAppIntegration = () => {
               </span>
             )}
             <button
-              onClick={checkWhatsAppStatus}
+              onClick={handleRetry}
               className="p-1 hover:bg-gray-100 rounded-full transition-colors"
               title="Refresh status"
             >
