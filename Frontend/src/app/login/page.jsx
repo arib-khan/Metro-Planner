@@ -1,10 +1,10 @@
 // src/app/login/page.jsx
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Train, Mail, Lock, AlertCircle } from 'lucide-react';
+import { Train, Mail, Lock, AlertCircle, Fingerprint } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export default function LoginPage() {
@@ -12,8 +12,19 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const [biometricLoading, setBiometricLoading] = useState(false);
+  const [showBiometricOption, setShowBiometricOption] = useState(false);
+  const { login, biometricAvailable, authenticateWithBiometric, isBiometricRegistered } = useAuth();
   const router = useRouter();
+
+  // Check if biometric is registered for the entered email
+  useEffect(() => {
+    if (email && biometricAvailable) {
+      setShowBiometricOption(isBiometricRegistered(email));
+    } else {
+      setShowBiometricOption(false);
+    }
+  }, [email, biometricAvailable, isBiometricRegistered]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -29,7 +40,7 @@ export default function LoginPage() {
         return;
       }
 
-      router.push('/dashboard');
+      router.push('/updates');
     } catch (error) {
       let errorMessage = 'Failed to log in. Please check your credentials.';
       
@@ -45,6 +56,56 @@ export default function LoginPage() {
       
       setError(errorMessage);
       setLoading(false);
+    }
+  };
+
+  const handleBiometricLogin = async () => {
+    if (!email) {
+      setError('Please enter your email address first');
+      return;
+    }
+
+    setError('');
+    setBiometricLoading(true);
+
+    try {
+      // Authenticate with biometric
+      await authenticateWithBiometric(email);
+      
+      // Get stored password (in production, use secure token-based auth)
+      const storedPassword = localStorage.getItem(`pwd_${email}`);
+      
+      if (!storedPassword) {
+        setError('Biometric login not properly configured. Please log in with password.');
+        setBiometricLoading(false);
+        return;
+      }
+
+      // Log in with stored credentials
+      const userCredential = await login(email, storedPassword);
+      
+      if (!userCredential.user.emailVerified) {
+        setError('Please verify your email before logging in.');
+        setBiometricLoading(false);
+        return;
+      }
+
+      router.push('/updates');
+    } catch (error) {
+      console.error('Biometric login error:', error);
+      
+      let errorMessage = 'Biometric authentication failed. Please try logging in with your password.';
+      
+      if (error.message.includes('not available')) {
+        errorMessage = 'Biometric authentication is not available on this device.';
+      } else if (error.message.includes('not found')) {
+        errorMessage = 'No biometric credential found. Please log in with password and enable fingerprint.';
+      } else if (error.name === 'NotAllowedError') {
+        errorMessage = 'Biometric authentication was cancelled.';
+      }
+      
+      setError(errorMessage);
+      setBiometricLoading(false);
     }
   };
 
@@ -93,6 +154,32 @@ export default function LoginPage() {
                 />
               </div>
             </div>
+
+            {/* Show fingerprint button if available for this email */}
+            {showBiometricOption && (
+              <div className="flex items-center justify-center">
+                <button
+                  type="button"
+                  onClick={handleBiometricLogin}
+                  disabled={biometricLoading}
+                  className="flex items-center gap-2 px-6 py-3 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors border border-blue-200"
+                >
+                  <Fingerprint className="h-5 w-5" />
+                  {biometricLoading ? 'Authenticating...' : 'Login with Fingerprint'}
+                </button>
+              </div>
+            )}
+
+            {showBiometricOption && (
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-300"></div>
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-2 bg-white text-gray-500">Or continue with password</span>
+                </div>
+              </div>
+            )}
 
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">

@@ -14,7 +14,7 @@ export default function LandingPage() {
 
   useEffect(() => {
     if (!loading && user && user.emailVerified) {
-      router.push('/dashboard');
+      router.push('/updates');
     }
     // Trigger animations on mount
     setTimeout(() => setIsVisible(true), 100);
@@ -70,7 +70,7 @@ export default function LandingPage() {
         {/* Background Image with Enhanced Overlay */}
         <div className="absolute inset-0 -z-20">
           <img
-            src="/Indore.png"
+            src="/kochi.png"
             alt="Modern railway system with trains in motion"
             className="h-full w-full object-cover object-center"
             loading="eager"

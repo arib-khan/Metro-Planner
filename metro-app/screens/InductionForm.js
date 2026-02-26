@@ -15,24 +15,28 @@ import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
 import { useAuth } from '../utils/authHelpers';
 
+// ── Hardcoded fleet list for picker ──────────────────────────────────────────
+export const TRAIN_IDS = Array.from({ length: 30 }, (_, i) => `KMRL-${i + 1}`);
+
 const initialValues = {
   trainId: '',
-  
+
   // Branding
   brandingPriorityLevel: '3',
   brandingType: 'None',
   brandingValidFrom: '',
   brandingValidTo: '',
+  brandingExposureMinutes: '0',
   brandingApprovedBy: 'Marketing Dept',
   brandingRemarks: '',
-  
+
   // Cleaning
   cleaningType: 'Daily Clean',
   cleaningSlotStart: '23:00',
   cleaningSlotEnd: '23:45',
   cleaningAssignedTeam: 'Team A',
   cleaningStatus: 'Scheduled',
-  
+
   // Stabling
   yard: 'Muttom Depot',
   trackNo: '1',
@@ -40,13 +44,13 @@ const initialValues = {
   orientation: 'UP',
   distanceFromBuffer: '4.5',
   stablingRemarks: '',
-  
-  // Fitness
+
+  // Fitness — store validity dates (not just a status flag)
   rollingStockValidity: '',
   signallingValidity: '',
   telecomValidity: '',
   fitnessStatus: 'Fit for Service',
-  
+
   // Job Card
   jobId: '',
   jobTask: '',
@@ -55,16 +59,15 @@ const initialValues = {
   jobDueDate: '',
   jobCompletedOn: '',
   jobPriority: 'Medium',
-  
-  // Mileage
-  previousMileageKm: '0',
+
+  // Mileage — new format only needs current_mileage_km
   currentMileageKm: '0',
-  mileageRemarks: '',
 };
 
+// ── Transform form values → exact new JSON format ─────────────────────────────
 const transformToExactJSONFormat = (formData, user) => {
   const currentDate = new Date().toISOString().split('T')[0];
-  
+
   const result = {
     date: currentDate,
     branding_priorities: [],
@@ -72,94 +75,76 @@ const transformToExactJSONFormat = (formData, user) => {
     stabling_geometry: [],
     fitness_certificates: [],
     job_card_status: [],
-    mileage: []
+    mileage: [],
   };
 
-  // Branding Priorities - only add if branding type is not 'None'
+  // Branding Priorities — only if not 'None'
   if (formData.brandingType && formData.brandingType !== 'None') {
     result.branding_priorities.push({
       train_id: formData.trainId,
+      exposure_minutes: parseInt(formData.brandingExposureMinutes) || 0,
       priority_level: parseInt(formData.brandingPriorityLevel) || 3,
       branding_type: formData.brandingType,
       valid_from: formData.brandingValidFrom || currentDate,
       valid_to: formData.brandingValidTo || currentDate,
-      approved_by: formData.brandingApprovedBy || "Marketing Dept",
-      remarks: formData.brandingRemarks || ""
+      approved_by: formData.brandingApprovedBy || 'Marketing Dept',
     });
   }
 
-  // Cleaning Slots - always add
-  const slotStart = formData.cleaningSlotStart 
-    ? `${currentDate}T${formData.cleaningSlotStart}` 
-    : `${currentDate}T23:00`;
-  const slotEnd = formData.cleaningSlotEnd 
-    ? `${currentDate}T${formData.cleaningSlotEnd}` 
-    : `${currentDate}T23:45`;
-
+  // Cleaning Slots
+  const slotDate = currentDate;
   result.cleaning_slots.push({
     train_id: formData.trainId,
     cleaning_type: formData.cleaningType || 'Daily Clean',
-    slot_start: slotStart,
-    slot_end: slotEnd,
-    assigned_team: formData.cleaningAssignedTeam || "Team A",
-    status: formData.cleaningStatus || "Scheduled"
+    slot_start: `${slotDate}T${formData.cleaningSlotStart || '23:00'}`,
+    slot_end: `${slotDate}T${formData.cleaningSlotEnd || '23:45'}`,
+    assigned_team: formData.cleaningAssignedTeam || 'Team A',
+    status: formData.cleaningStatus || 'Scheduled',
   });
 
-  // Stabling Geometry - always add
+  // Stabling Geometry
   result.stabling_geometry.push({
     train_id: formData.trainId,
     yard: formData.yard || 'Muttom Depot',
     track_no: parseInt(formData.trackNo) || 1,
     berth: formData.berth || 'A1',
-    orientation: formData.orientation || "UP",
+    orientation: formData.orientation || 'UP',
     distance_from_buffer_m: parseFloat(formData.distanceFromBuffer) || 4.5,
-    remarks: formData.stablingRemarks || ""
+    remarks: formData.stablingRemarks || '',
   });
 
-  // Fitness Certificates - always add
+  // Fitness Certificates — store validity dates for each cert type
+  // These will remain visible for any view date within the validity window
   result.fitness_certificates.push({
     train_id: formData.trainId,
-    rolling_stock_validity: formData.rollingStockValidity || "",
-    signalling_validity: formData.signallingValidity || "",
-    telecom_validity: formData.telecomValidity || "",
-    status: formData.fitnessStatus || "Fit for Service"
+    rolling_stock_validity: formData.rollingStockValidity || '',
+    signalling_validity: formData.signallingValidity || '',
+    telecom_validity: formData.telecomValidity || '',
+    status: formData.fitnessStatus || 'Fit for Service',
   });
 
-  // Job Card Status - only add if there's a job task or ID
+  // Job Card Status — only if task or ID provided
   if (formData.jobTask || formData.jobId) {
     const jobCard = {
       train_id: formData.trainId,
       job_id: formData.jobId || `JC-${Math.floor(Math.random() * 9000) + 1000}`,
-      task: formData.jobTask || "",
-      status: formData.jobStatus || "Open",
-      assigned_team: formData.jobAssignedTeam || "Maintenance Team",
-      due_date: formData.jobDueDate || currentDate
+      task: formData.jobTask || '',
+      status: formData.jobStatus || 'Open',
+      assigned_team: formData.jobAssignedTeam || 'Maintenance Team',
+      due_date: formData.jobDueDate || currentDate,
+      priority: formData.jobPriority || 'Medium',
     };
-
-    if (formData.jobCompletedOn) {
-      jobCard.completed_on = formData.jobCompletedOn;
-    }
-
-    if (formData.jobPriority) {
-      jobCard.priority = formData.jobPriority;
-    }
-
+    if (formData.jobCompletedOn) jobCard.completed_on = formData.jobCompletedOn;
     result.job_card_status.push(jobCard);
   }
 
-  // Mileage - always add
-  const prevMileage = parseInt(formData.previousMileageKm) || 0;
-  const currMileage = parseInt(formData.currentMileageKm) || 0;
-
+  // Mileage — new format: only current_mileage_km
   result.mileage.push({
     train_id: formData.trainId,
-    previous_mileage_km: prevMileage,
-    current_mileage_km: currMileage,
-    delta_km: currMileage - prevMileage,
-    remarks: formData.mileageRemarks || ""
+    current_mileage_km: parseInt(formData.currentMileageKm) || 0,
   });
 
-  // Add metadata
+  // Metadata
   result.userId = user.uid;
   result.userName = user.displayName || user.email;
   result.userEmail = user.email;
@@ -171,6 +156,8 @@ const transformToExactJSONFormat = (formData, user) => {
   return result;
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+
 export default function InductionForm({ navigation }) {
   const { user } = useAuth();
   const [snackbarVisible, setSnackbarVisible] = useState(false);
@@ -181,24 +168,20 @@ export default function InductionForm({ navigation }) {
     setLoading(true);
     try {
       const jsonData = transformToExactJSONFormat(values, user);
-      
       console.log('Submitting data:', JSON.stringify(jsonData, null, 2));
 
       const docRef = await addDoc(collection(db, 'trainInduction'), jsonData);
-      
       console.log('✅ Successfully saved with ID:', docRef.id);
-      
+
       setSnackbarMessage('Form submitted successfully!');
       setSnackbarVisible(true);
-      
       Alert.alert('Success', 'Train induction form submitted successfully!');
-      
       resetForm();
-      
+
       setTimeout(() => {
-        navigation.navigate('Success', { 
+        navigation.navigate('Success', {
           documentId: docRef.id,
-          isOffline: false 
+          isOffline: false,
         });
       }, 1500);
     } catch (error) {
@@ -236,8 +219,8 @@ export default function InductionForm({ navigation }) {
                   {
                     name: 'trainId',
                     label: 'Train ID *',
-                    type: 'text',
-                    placeholder: 'KMRC-012',
+                    type: 'select',
+                    options: TRAIN_IDS,
                   },
                 ]}
                 values={values}
@@ -248,13 +231,13 @@ export default function InductionForm({ navigation }) {
 
               {/* Branding Priorities */}
               <FormSection
-                title="🎨 Branding Priorities"
+                title="🎨 Branding Priority"
                 fields={[
                   {
                     name: 'brandingType',
                     label: 'Branding Type',
                     type: 'select',
-                    options: ['None', 'Election Awareness', 'Tourism', 'Corporate Branding'],
+                    options: ['None', 'Election Awareness', 'Tourism', 'Government Campaign', 'Commercial'],
                   },
                   {
                     name: 'brandingPriorityLevel',
@@ -263,14 +246,27 @@ export default function InductionForm({ navigation }) {
                     options: ['1', '2', '3'],
                   },
                   {
+                    name: 'brandingExposureMinutes',
+                    label: 'Exposure Minutes',
+                    type: 'number',
+                    placeholder: '3600',
+                  },
+                  {
+                    name: 'brandingValidFrom',
+                    label: 'Valid From (YYYY-MM-DD)',
+                    type: 'text',
+                    placeholder: '2025-11-01',
+                  },
+                  {
+                    name: 'brandingValidTo',
+                    label: 'Valid To (YYYY-MM-DD)',
+                    type: 'text',
+                    placeholder: '2025-11-30',
+                  },
+                  {
                     name: 'brandingApprovedBy',
                     label: 'Approved By',
                     type: 'text',
-                  },
-                  {
-                    name: 'brandingRemarks',
-                    label: 'Remarks',
-                    type: 'textarea',
                   },
                 ]}
                 values={values}
@@ -291,13 +287,15 @@ export default function InductionForm({ navigation }) {
                   },
                   {
                     name: 'cleaningSlotStart',
-                    label: 'Slot Start Time',
-                    type: 'time',
+                    label: 'Slot Start Time (HH:MM)',
+                    type: 'text',
+                    placeholder: '23:00',
                   },
                   {
                     name: 'cleaningSlotEnd',
-                    label: 'Slot End Time',
-                    type: 'time',
+                    label: 'Slot End Time (HH:MM)',
+                    type: 'text',
+                    placeholder: '23:45',
                   },
                   {
                     name: 'cleaningAssignedTeam',
@@ -372,21 +370,21 @@ export default function InductionForm({ navigation }) {
                   },
                   {
                     name: 'rollingStockValidity',
-                    label: 'Rolling Stock Validity (YYYY-MM-DD)',
+                    label: 'Rolling Stock Valid Until (YYYY-MM-DD)',
                     type: 'text',
-                    placeholder: '2025-12-31',
+                    placeholder: '2025-12-10',
                   },
                   {
                     name: 'signallingValidity',
-                    label: 'Signalling Validity (YYYY-MM-DD)',
+                    label: 'Signalling Valid Until (YYYY-MM-DD)',
                     type: 'text',
-                    placeholder: '2025-12-31',
+                    placeholder: '2025-12-07',
                   },
                   {
                     name: 'telecomValidity',
-                    label: 'Telecom Validity (YYYY-MM-DD)',
+                    label: 'Telecom Valid Until (YYYY-MM-DD)',
                     type: 'text',
-                    placeholder: '2025-12-31',
+                    placeholder: '2025-12-15',
                   },
                 ]}
                 values={values}
@@ -441,27 +439,15 @@ export default function InductionForm({ navigation }) {
                 touched={touched}
               />
 
-              {/* Mileage */}
+              {/* Mileage — simplified to current only */}
               <FormSection
                 title="📊 Mileage"
                 fields={[
-                  {
-                    name: 'previousMileageKm',
-                    label: 'Previous Mileage (km)',
-                    type: 'number',
-                    placeholder: '288120',
-                  },
                   {
                     name: 'currentMileageKm',
                     label: 'Current Mileage (km)',
                     type: 'number',
                     placeholder: '288650',
-                  },
-                  {
-                    name: 'mileageRemarks',
-                    label: 'Remarks',
-                    type: 'textarea',
-                    placeholder: 'Normal usage',
                   },
                 ]}
                 values={values}
@@ -475,11 +461,11 @@ export default function InductionForm({ navigation }) {
                 onPress={handleSubmit}
                 loading={loading}
                 disabled={loading}
-                style={{ 
-                  marginTop: 20, 
+                style={{
+                  marginTop: 20,
                   marginBottom: 30,
                   paddingVertical: 8,
-                  backgroundColor: '#2196F3'
+                  backgroundColor: '#1e293b',
                 }}
                 icon="send"
               >

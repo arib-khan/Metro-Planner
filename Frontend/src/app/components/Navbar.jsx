@@ -4,7 +4,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Train, Calendar, Users, FileText, Bell, Settings, Menu, X, LogOut } from 'lucide-react';
+import { Train, Calendar, Users, FileText, Bell, Settings, Menu, X, LogOut, Wrench } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const Navbar = () => {
@@ -18,6 +18,7 @@ const Navbar = () => {
     { name: 'Scheduling', href: '/scheduling', icon: Calendar },
     { name: 'Simulation', href: '/simulation', icon: Users },
     { name: 'Updates', href: '/updates', icon: FileText },
+    { name: 'inspection', href: '/inspection', icon: Wrench },
   ];
 
   const isActive = (path) => {

@@ -17,7 +17,7 @@ const WhatsAppIntegration = () => {
   const [initializing, setInitializing] = useState(false);
   const [allConnections, setAllConnections] = useState([]);
   const [retryCount, setRetryCount] = useState(0);
-  
+
   const pollingIntervalRef = useRef(null);
   const lastSuccessfulFetchRef = useRef(Date.now());
 
@@ -61,30 +61,30 @@ const WhatsAppIntegration = () => {
         {},
         10000
       );
-      
+
       if (!response.ok) {
         throw new Error(`Server error: ${response.status} ${response.statusText}`);
       }
-      
+
       const data = await response.json();
       setWhatsappStatus(data);
       setError(null);
       setRetryCount(0);
       lastSuccessfulFetchRef.current = Date.now();
-      
+
       if (data.hasQR && !data.ready) {
         fetchQRCode();
       } else {
         setQrCode(null);
       }
-      
+
       setLoading(false);
     } catch (error) {
       console.error('Error checking WhatsApp status:', error);
-      
+
       // Set user-friendly error messages
       let errorMessage = 'Unable to connect to WhatsApp server';
-      
+
       if (error.message.includes('timeout')) {
         errorMessage = 'Server is taking too long to respond. Please try again.';
       } else if (error.message.includes('Failed to fetch')) {
@@ -92,10 +92,10 @@ const WhatsAppIntegration = () => {
       } else if (error.message.includes('Server error')) {
         errorMessage = error.message;
       }
-      
+
       setError(errorMessage);
       setLoading(false);
-      
+
       // Exponential backoff for retries
       setRetryCount(prev => prev + 1);
     }
@@ -110,13 +110,13 @@ const WhatsAppIntegration = () => {
         {},
         10000
       );
-      
+
       if (!response.ok) {
         throw new Error('Failed to fetch QR code');
       }
-      
+
       const data = await response.json();
-      
+
       if (data.qr) {
         setQrCode(data.qr);
       }
@@ -132,7 +132,7 @@ const WhatsAppIntegration = () => {
         {},
         10000
       );
-      
+
       if (response.ok) {
         const data = await response.json();
         setAllConnections(data.connections || []);
@@ -175,12 +175,12 @@ const WhatsAppIntegration = () => {
       setRetryCount(0);
       checkWhatsAppStatus();
     };
-    
+
     const handleOffline = () => {
       setIsOnline(false);
       setError('You are offline. Please check your internet connection.');
     };
-    
+
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
@@ -198,7 +198,7 @@ const WhatsAppIntegration = () => {
 
     setInitializing(true);
     setError(null);
-    
+
     try {
       const response = await fetchWithTimeout(
         `${API_URL}/api/whatsapp/initialize`,
@@ -219,7 +219,7 @@ const WhatsAppIntegration = () => {
       }
 
       const data = await response.json();
-      
+
       if (data.success) {
         setTimeout(() => {
           checkWhatsAppStatus();
@@ -238,7 +238,7 @@ const WhatsAppIntegration = () => {
 
   const disconnectWhatsApp = async () => {
     if (!user) return;
-    
+
     if (!confirm('Are you sure you want to disconnect your WhatsApp?')) return;
 
     try {
@@ -249,7 +249,7 @@ const WhatsAppIntegration = () => {
       );
 
       const data = await response.json();
-      
+
       if (data.success) {
         setWhatsappStatus({ ready: false, hasQR: false, info: null });
         setQrCode(null);
@@ -300,7 +300,7 @@ const WhatsAppIntegration = () => {
           <WifiOff className="h-6 w-6 text-orange-600 mr-3 mt-0.5 shrink-0" />
           <div className="flex-1">
             <h3 className="text-lg font-semibold text-orange-900 mb-2">
-              You're Offline
+              Youre Offline
             </h3>
             <p className="text-sm text-orange-700 mb-4">
               Please check your internet connection to use WhatsApp features.
@@ -403,11 +403,11 @@ const WhatsAppIntegration = () => {
                 <p className="text-xs text-green-600 mb-4">
                   ✓ You can now submit train induction data via WhatsApp
                 </p>
-                
+
                 <div className="mt-4 p-3 bg-white rounded border border-green-200">
                   <p className="text-xs font-semibold text-gray-700 mb-2">📱 Send messages in this format:</p>
                   <pre className="text-xs text-gray-600 whitespace-pre-wrap font-mono bg-gray-50 p-3 rounded overflow-x-auto">
-{`Train Set: KMRC-012
+                    {`Train Set: KMRC-012
 Depot: Muttom
 Current Mileage: 288650 km
 Fitness Status: Fit for Service
@@ -425,15 +425,15 @@ Reported By: Ground Staff A`}
               <Smartphone className="h-6 w-6 text-gray-600 mr-2" />
               <h4 className="text-md font-semibold text-gray-900">Scan QR Code to Connect</h4>
             </div>
-            
+
             <div className="bg-gray-50 rounded-lg p-6 mb-4 inline-block border-2 border-gray-200">
-              <img 
-                src={qrCode} 
-                alt="WhatsApp QR Code" 
+              <img
+                src={qrCode}
+                alt="WhatsApp QR Code"
                 className="w-64 h-64 mx-auto"
               />
             </div>
-            
+
             <div className="text-sm text-gray-600 space-y-2">
               <p className="flex items-center justify-center">
                 <span className="bg-gray-900 text-white rounded-full w-6 h-6 flex items-center justify-center mr-2 text-xs font-bold">1</span>
@@ -445,7 +445,7 @@ Reported By: Ground Staff A`}
               </p>
               <p className="flex items-center justify-center">
                 <span className="bg-gray-900 text-white rounded-full w-6 h-6 flex items-center justify-center mr-2 text-xs font-bold">3</span>
-                Tap "Link a Device" and scan this QR code
+                Tap Link a Device and scan this QR code
               </p>
             </div>
           </div>

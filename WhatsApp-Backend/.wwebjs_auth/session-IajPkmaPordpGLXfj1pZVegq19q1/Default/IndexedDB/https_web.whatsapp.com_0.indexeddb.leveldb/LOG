@@ -1,141 +1,703 @@
-2026/01/04-17:39:08.879 820 Creating DB C:\Users\hp\Desktop\Metro-Planner\WhatsApp-Backend\.wwebjs_auth\session-IajPkmaPordpGLXfj1pZVegq19q1\Default\IndexedDB\https_web.whatsapp.com_0.indexeddb.leveldb since it was missing.
-2026/01/04-17:39:08.944 820 Reusing MANIFEST C:\Users\hp\Desktop\Metro-Planner\WhatsApp-Backend\.wwebjs_auth\session-IajPkmaPordpGLXfj1pZVegq19q1\Default\IndexedDB\https_web.whatsapp.com_0.indexeddb.leveldb/MANIFEST-000001
-2026/01/04-17:39:08.945 820 Recovering log #613
-2026/01/04-17:39:08.967 820 Reusing old log C:\Users\hp\Desktop\Metro-Planner\WhatsApp-Backend\.wwebjs_auth\session-IajPkmaPordpGLXfj1pZVegq19q1\Default\IndexedDB\https_web.whatsapp.com_0.indexeddb.leveldb/000613.log 
-2026/01/04-17:39:08.968 820 Delete type=2 #612
-2026/01/04-17:39:08.971 820 Delete type=2 #615
-2026/01/04-17:39:09.564 820 Level-0 table #615: started
-2026/01/04-17:39:09.571 820 Level-0 table #615: 37715 bytes OK
-2026/01/04-17:39:09.573 820 Delete type=0 #613
-2026/01/04-17:39:09.573 820 Manual compaction at level-0 from '\x00\x02\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x03\x00\x00\x00' @ 0 : 0; will stop at (end)
-2026/01/04-17:39:09.575 820 Level-0 table #617: started
-2026/01/04-17:39:09.592 820 Level-0 table #617: 873 bytes OK
-2026/01/04-17:39:09.593 820 Delete type=0 #614
-2026/01/04-17:39:09.594 820 Manual compaction at level-0 from '\x00\x03\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x04\x00\x00\x00' @ 0 : 0; will stop at (end)
-2026/01/04-17:39:09.594 820 Manual compaction at level-1 from '\x00\x03\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x04\x00\x00\x00' @ 0 : 0; will stop at '\x00\x03\x00\x00\x05' @ 2988526 : 0
-2026/01/04-17:39:09.594 820 Compacting 1@1 + 1@2 files
-2026/01/04-17:39:09.600 820 Generated table #618@1: 343 keys, 11021 bytes
-2026/01/04-17:39:09.600 820 Compacted 1@1 + 1@2 files => 11021 bytes
-2026/01/04-17:39:09.601 820 compacted to: files[ 0 0 1 0 0 0 0 ]
-2026/01/04-17:39:09.601 820 Delete type=2 #617
-2026/01/04-17:39:09.601 3894 Manual compaction at level-1 from '\x00\x03\x00\x00\x05' @ 2988526 : 0 .. '\x00\x04\x00\x00\x00' @ 0 : 0; will stop at (end)
-2026/01/04-17:39:09.603 3894 Level-0 table #620: started
-2026/01/04-17:39:09.622 3894 Level-0 table #620: 1511 bytes OK
-2026/01/04-17:39:09.623 3894 Delete type=2 #615
-2026/01/04-17:39:09.623 3894 Delete type=0 #616
-2026/01/04-17:39:09.624 3894 Manual compaction at level-0 from '\x00\x04\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x05\x00\x00\x00' @ 0 : 0; will stop at (end)
-2026/01/04-17:39:09.624 3894 Manual compaction at level-1 from '\x00\x04\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x05\x00\x00\x00' @ 0 : 0; will stop at '\x00\x0e\x00\x00\xc8\x0a\x00q\x00p\x00l\x00-\x00e\x00v\x00e\x00n\x00t\x00s' @ 2988592 : 1
-2026/01/04-17:39:09.625 3894 Compacting 1@1 + 1@2 files
-2026/01/04-17:39:09.629 3894 Generated table #621@1: 380 keys, 12603 bytes
-2026/01/04-17:39:09.629 3894 Compacted 1@1 + 1@2 files => 12603 bytes
-2026/01/04-17:39:09.630 3894 compacted to: files[ 0 0 1 0 0 0 0 ]
-2026/01/04-17:39:09.630 3894 Delete type=2 #620
-2026/01/04-17:39:09.630 3894 Manual compaction at level-1 from '\x00\x0e\x00\x00\xc8\x0a\x00q\x00p\x00l\x00-\x00e\x00v\x00e\x00n\x00t\x00s' @ 2988592 : 1 .. '\x00\x05\x00\x00\x00' @ 0 : 0; will stop at (end)
-2026/01/04-17:39:09.631 1788 Level-0 table #623: started
-2026/01/04-17:39:09.647 1788 Level-0 table #623: 2079 bytes OK
-2026/01/04-17:39:09.649 1788 Delete type=2 #618
-2026/01/04-17:39:09.649 1788 Delete type=0 #619
-2026/01/04-17:39:09.649 1788 Manual compaction at level-0 from '\x00\x05\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x06\x00\x00\x00' @ 0 : 0; will stop at (end)
-2026/01/04-17:39:09.649 1788 Manual compaction at level-1 from '\x00\x05\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x06\x00\x00\x00' @ 0 : 0; will stop at '\x00\x0f\x02\x02\x03\x00\x00\x00\x00\x00\x00\xf0?' @ 2988683 : 1
-2026/01/04-17:39:09.649 1788 Compacting 1@1 + 1@2 files
-2026/01/04-17:39:09.653 1788 Generated table #624@1: 439 keys, 13109 bytes
-2026/01/04-17:39:09.653 1788 Compacted 1@1 + 1@2 files => 13109 bytes
-2026/01/04-17:39:09.654 1788 compacted to: files[ 0 0 1 0 0 0 0 ]
-2026/01/04-17:39:09.654 1788 Delete type=2 #623
-2026/01/04-17:39:09.655 1788 Manual compaction at level-1 from '\x00\x0f\x02\x02\x03\x00\x00\x00\x00\x00\x00\xf0?' @ 2988683 : 1 .. '\x00\x06\x00\x00\x00' @ 0 : 0; will stop at (end)
-2026/01/04-17:39:09.655 1788 Level-0 table #626: started
-2026/01/04-17:39:09.671 1788 Level-0 table #626: 2879 bytes OK
-2026/01/04-17:39:09.672 1788 Delete type=2 #621
-2026/01/04-17:39:09.672 1788 Delete type=0 #622
-2026/01/04-17:39:09.672 1788 Manual compaction at level-0 from '\x00\x06\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x07\x00\x00\x00' @ 0 : 0; will stop at (end)
-2026/01/04-17:39:09.673 1788 Manual compaction at level-1 from '\x00\x06\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x07\x00\x00\x00' @ 0 : 0; will stop at '\x00\x11\x00\x00\x05' @ 2988866 : 1
-2026/01/04-17:39:09.673 1788 Compacting 1@1 + 1@2 files
-2026/01/04-17:39:09.677 1788 Generated table #627@1: 596 keys, 15254 bytes
-2026/01/04-17:39:09.677 1788 Compacted 1@1 + 1@2 files => 15254 bytes
-2026/01/04-17:39:09.678 1788 compacted to: files[ 0 0 1 0 0 0 0 ]
-2026/01/04-17:39:09.678 1788 Delete type=2 #626
-2026/01/04-17:39:09.679 1788 Manual compaction at level-1 from '\x00\x11\x00\x00\x05' @ 2988866 : 1 .. '\x00\x07\x00\x00\x00' @ 0 : 0; will stop at (end)
-2026/01/04-17:39:09.680 1788 Level-0 table #629: started
-2026/01/04-17:39:09.695 1788 Level-0 table #629: 249 bytes OK
-2026/01/04-17:39:09.696 1788 Delete type=2 #624
-2026/01/04-17:39:09.696 1788 Delete type=0 #625
-2026/01/04-17:39:09.697 1788 Manual compaction at level-0 from '\x00\x07\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x08\x00\x00\x00' @ 0 : 0; will stop at (end)
-2026/01/04-17:39:09.697 1788 Manual compaction at level-1 from '\x00\x07\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x08\x00\x00\x00' @ 0 : 0; will stop at '\x00\x07\x00\x00\x05' @ 2988886 : 0
-2026/01/04-17:39:09.697 1788 Compacting 1@1 + 1@2 files
-2026/01/04-17:39:09.701 1788 Generated table #630@1: 590 keys, 15209 bytes
-2026/01/04-17:39:09.701 1788 Compacted 1@1 + 1@2 files => 15209 bytes
-2026/01/04-17:39:09.702 1788 compacted to: files[ 0 0 1 0 0 0 0 ]
-2026/01/04-17:39:09.702 1788 Delete type=2 #629
-2026/01/04-17:39:09.703 1788 Manual compaction at level-1 from '\x00\x07\x00\x00\x05' @ 2988886 : 0 .. '\x00\x08\x00\x00\x00' @ 0 : 0; will stop at (end)
-2026/01/04-17:39:09.704 1788 Level-0 table #632: started
-2026/01/04-17:39:09.720 1788 Level-0 table #632: 421 bytes OK
-2026/01/04-17:39:09.721 1788 Delete type=2 #627
-2026/01/04-17:39:09.721 1788 Delete type=0 #628
-2026/01/04-17:39:09.722 1788 Manual compaction at level-0 from '\x00\x08\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x09\x00\x00\x00' @ 0 : 0; will stop at (end)
-2026/01/04-17:39:09.722 1788 Manual compaction at level-1 from '\x00\x08\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x09\x00\x00\x00' @ 0 : 0; will stop at '\x00\x12\x00\x00\x05' @ 2988890 : 1
-2026/01/04-17:39:09.722 1788 Compacting 1@1 + 1@2 files
-2026/01/04-17:39:09.727 1788 Generated table #633@1: 587 keys, 15124 bytes
-2026/01/04-17:39:09.727 1788 Compacted 1@1 + 1@2 files => 15124 bytes
-2026/01/04-17:39:09.728 1788 compacted to: files[ 0 0 1 0 0 0 0 ]
-2026/01/04-17:39:09.728 1788 Delete type=2 #632
-2026/01/04-17:39:09.729 1788 Manual compaction at level-1 from '\x00\x12\x00\x00\x05' @ 2988890 : 1 .. '\x00\x09\x00\x00\x00' @ 0 : 0; will stop at (end)
-2026/01/04-17:39:09.730 1788 Level-0 table #635: started
-2026/01/04-17:39:09.746 1788 Level-0 table #635: 249 bytes OK
-2026/01/04-17:39:09.747 1788 Delete type=2 #630
-2026/01/04-17:39:09.747 1788 Delete type=0 #631
-2026/01/04-17:39:09.748 1788 Manual compaction at level-0 from '\x00\x0c\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x0d\x00\x00\x00' @ 0 : 0; will stop at (end)
-2026/01/04-17:39:09.748 1788 Manual compaction at level-1 from '\x00\x0c\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x0d\x00\x00\x00' @ 0 : 0; will stop at '\x00\x0c\x00\x00\x05' @ 2988903 : 0
-2026/01/04-17:39:09.748 1788 Compacting 1@1 + 1@2 files
-2026/01/04-17:39:09.752 1788 Generated table #636@1: 581 keys, 16301 bytes
-2026/01/04-17:39:09.753 1788 Compacted 1@1 + 1@2 files => 16301 bytes
-2026/01/04-17:39:09.753 1788 compacted to: files[ 0 0 1 0 0 0 0 ]
-2026/01/04-17:39:09.754 1788 Delete type=2 #635
-2026/01/04-17:39:09.754 1788 Manual compaction at level-1 from '\x00\x0c\x00\x00\x05' @ 2988903 : 0 .. '\x00\x0d\x00\x00\x00' @ 0 : 0; will stop at (end)
-2026/01/04-17:39:09.755 1788 Level-0 table #638: started
-2026/01/04-17:39:09.773 1788 Level-0 table #638: 249 bytes OK
-2026/01/04-17:39:09.775 1788 Delete type=2 #633
-2026/01/04-17:39:09.775 1788 Delete type=0 #634
-2026/01/04-17:39:09.776 1788 Manual compaction at level-0 from '\x00\x0a\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x0b\x00\x00\x00' @ 0 : 0; will stop at (end)
-2026/01/04-17:39:09.776 1788 Manual compaction at level-1 from '\x00\x0a\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x0b\x00\x00\x00' @ 0 : 0; will stop at '\x00\x0a\x00\x00\x05' @ 2988909 : 0
-2026/01/04-17:39:09.776 1788 Compacting 1@1 + 1@2 files
-2026/01/04-17:39:09.781 1788 Generated table #639@1: 575 keys, 16297 bytes
-2026/01/04-17:39:09.781 1788 Compacted 1@1 + 1@2 files => 16297 bytes
-2026/01/04-17:39:09.781 1788 compacted to: files[ 0 0 1 0 0 0 0 ]
-2026/01/04-17:39:09.782 1788 Delete type=2 #638
-2026/01/04-17:39:09.782 1788 Manual compaction at level-1 from '\x00\x0a\x00\x00\x05' @ 2988909 : 0 .. '\x00\x0b\x00\x00\x00' @ 0 : 0; will stop at (end)
-2026/01/04-17:39:09.783 1788 Level-0 table #641: started
-2026/01/04-17:39:09.799 1788 Level-0 table #641: 249 bytes OK
-2026/01/04-17:39:09.800 1788 Delete type=2 #636
-2026/01/04-17:39:09.800 1788 Delete type=0 #637
-2026/01/04-17:39:09.800 1788 Manual compaction at level-0 from '\x00\x0b\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x0c\x00\x00\x00' @ 0 : 0; will stop at (end)
-2026/01/04-17:39:09.801 1788 Manual compaction at level-1 from '\x00\x0b\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x0c\x00\x00\x00' @ 0 : 0; will stop at '\x00\x0b\x00\x00\x05' @ 2988915 : 0
-2026/01/04-17:39:09.801 1788 Compacting 1@1 + 1@2 files
-2026/01/04-17:39:09.804 1788 Generated table #642@1: 569 keys, 16239 bytes
-2026/01/04-17:39:09.804 1788 Compacted 1@1 + 1@2 files => 16239 bytes
-2026/01/04-17:39:09.805 1788 compacted to: files[ 0 0 1 0 0 0 0 ]
-2026/01/04-17:39:09.806 1788 Delete type=2 #641
-2026/01/04-17:39:09.807 1788 Manual compaction at level-1 from '\x00\x0b\x00\x00\x05' @ 2988915 : 0 .. '\x00\x0c\x00\x00\x00' @ 0 : 0; will stop at (end)
-2026/01/04-17:39:09.808 1788 Level-0 table #644: started
-2026/01/04-17:39:09.824 1788 Level-0 table #644: 249 bytes OK
-2026/01/04-17:39:09.826 1788 Delete type=2 #639
-2026/01/04-17:39:09.826 1788 Delete type=0 #640
-2026/01/04-17:39:09.827 1788 Manual compaction at level-0 from '\x00\x09\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x0a\x00\x00\x00' @ 0 : 0; will stop at (end)
-2026/01/04-17:39:09.827 1788 Manual compaction at level-1 from '\x00\x09\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x0a\x00\x00\x00' @ 0 : 0; will stop at '\x00\x09\x00\x00\x05' @ 2988921 : 0
-2026/01/04-17:39:09.827 1788 Compacting 1@1 + 1@2 files
-2026/01/04-17:39:09.836 1788 Generated table #645@1: 563 keys, 15941 bytes
-2026/01/04-17:39:09.836 1788 Compacted 1@1 + 1@2 files => 15941 bytes
-2026/01/04-17:39:09.836 1788 compacted to: files[ 0 0 1 0 0 0 0 ]
-2026/01/04-17:39:09.837 1788 Delete type=2 #644
-2026/01/04-17:39:09.837 1788 Manual compaction at level-1 from '\x00\x09\x00\x00\x05' @ 2988921 : 0 .. '\x00\x0a\x00\x00\x00' @ 0 : 0; will stop at (end)
-2026/01/04-17:39:09.839 3894 Level-0 table #647: started
-2026/01/04-17:39:09.855 3894 Level-0 table #647: 1340 bytes OK
-2026/01/04-17:39:09.856 3894 Delete type=2 #642
-2026/01/04-17:39:09.856 3894 Delete type=0 #643
-2026/01/04-17:39:09.857 3894 Manual compaction at level-0 from '\x00\x11\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x12\x00\x00\x00' @ 0 : 0; will stop at (end)
-2026/01/04-17:39:09.857 3894 Manual compaction at level-1 from '\x00\x11\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x12\x00\x00\x00' @ 0 : 0; will stop at '\x00\x11\x00\x00\x05' @ 2989058 : 0
-2026/01/04-17:39:09.857 3894 Compacting 1@1 + 1@2 files
-2026/01/04-17:39:09.862 3894 Generated table #648@1: 426 keys, 13984 bytes
-2026/01/04-17:39:09.862 3894 Compacted 1@1 + 1@2 files => 13984 bytes
-2026/01/04-17:39:09.862 3894 compacted to: files[ 0 0 1 0 0 0 0 ]
-2026/01/04-17:39:09.863 3894 Delete type=2 #647
-2026/01/04-17:39:09.863 3894 Manual compaction at level-1 from '\x00\x11\x00\x00\x05' @ 2989058 : 0 .. '\x00\x12\x00\x00\x00' @ 0 : 0; will stop at (end)
+2026/02/04-19:01:13.031 1864 Reusing MANIFEST C:\Users\hp\Desktop\Metro-Planner\WhatsApp-Backend\.wwebjs_auth\session-IajPkmaPordpGLXfj1pZVegq19q1\Default\IndexedDB\https_web.whatsapp.com_0.indexeddb.leveldb/MANIFEST-000001
+2026/02/04-19:01:13.032 1864 Recovering log #338
+2026/02/04-19:01:13.132 1864 Reusing old log C:\Users\hp\Desktop\Metro-Planner\WhatsApp-Backend\.wwebjs_auth\session-IajPkmaPordpGLXfj1pZVegq19q1\Default\IndexedDB\https_web.whatsapp.com_0.indexeddb.leveldb/000338.log 
+2026/02/04-19:01:17.757 5e00 Level-0 table #348: started
+2026/02/04-19:01:17.794 5e00 Level-0 table #348: 252975 bytes OK
+2026/02/04-19:01:17.796 5e00 Delete type=0 #338
+2026/02/04-19:01:17.798 5e00 Manual compaction at level-0 from '\x00@\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00A\x00\x00\x00' @ 0 : 0; will stop at (end)
+2026/02/04-19:01:18.090 1100 Compacting 1@1 + 6@2 files
+2026/02/04-19:01:18.338 1100 Generated table #349@1: 41569 keys, 2233829 bytes
+2026/02/04-19:01:18.646 1100 Generated table #350@1: 41026 keys, 2202348 bytes
+2026/02/04-19:01:18.716 1100 Generated table #351@1: 2519 keys, 2159013 bytes
+2026/02/04-19:01:18.854 1100 Generated table #352@1: 13061 keys, 2197647 bytes
+2026/02/04-19:01:19.120 1100 Generated table #353@1: 39290 keys, 2248220 bytes
+2026/02/04-19:01:19.212 1100 Generated table #354@1: 21819 keys, 736444 bytes
+2026/02/04-19:01:19.212 1100 Compacted 1@1 + 6@2 files => 11777501 bytes
+2026/02/04-19:01:19.213 1100 compacted to: files[ 0 0 6 0 0 0 0 ]
+2026/02/04-19:01:19.214 1100 Delete type=2 #340
+2026/02/04-19:01:19.214 1100 Delete type=2 #341
+2026/02/04-19:01:19.214 1100 Delete type=2 #342
+2026/02/04-19:01:19.214 1100 Delete type=2 #343
+2026/02/04-19:01:19.215 1100 Delete type=2 #344
+2026/02/04-19:01:19.215 1100 Delete type=2 #345
+2026/02/04-19:01:19.215 1100 Delete type=2 #348
+2026/02/04-19:01:56.760 3f90 Level-0 table #356: started
+2026/02/04-19:01:56.943 3f90 Level-0 table #356: 1112988 bytes OK
+2026/02/04-19:01:56.945 3f90 Delete type=0 #347
+2026/02/04-19:01:58.003 4198 Compacting 1@1 + 6@2 files
+2026/02/04-19:01:58.423 4198 Generated table #357@1: 43702 keys, 2236192 bytes
+2026/02/04-19:01:58.841 4198 Generated table #358@1: 42035 keys, 2205300 bytes
+2026/02/04-19:01:58.948 4198 Generated table #359@1: 2463 keys, 2159565 bytes
+2026/02/04-19:01:59.179 4198 Generated table #360@1: 12220 keys, 2192379 bytes
+2026/02/04-19:01:59.501 4198 Generated table #361@1: 39597 keys, 2248182 bytes
+2026/02/04-19:01:59.764 4198 Generated table #362@1: 30435 keys, 1073507 bytes
+2026/02/04-19:01:59.764 4198 Compacted 1@1 + 6@2 files => 12115125 bytes
+2026/02/04-19:01:59.765 4198 compacted to: files[ 0 0 6 0 0 0 0 ]
+2026/02/04-19:01:59.767 4198 Delete type=2 #349
+2026/02/04-19:01:59.767 4198 Delete type=2 #350
+2026/02/04-19:01:59.767 4198 Delete type=2 #351
+2026/02/04-19:01:59.767 4198 Delete type=2 #352
+2026/02/04-19:01:59.767 4198 Delete type=2 #353
+2026/02/04-19:01:59.767 4198 Delete type=2 #354
+2026/02/04-19:01:59.767 4198 Delete type=2 #356
+2026/02/04-19:02:26.539 4198 Level-0 table #364: started
+2026/02/04-19:02:26.642 4198 Level-0 table #364: 1068468 bytes OK
+2026/02/04-19:02:26.646 4198 Delete type=0 #355
+2026/02/04-19:02:27.643 4a4c Compacting 1@1 + 6@2 files
+2026/02/04-19:02:28.091 4a4c Generated table #365@1: 43750 keys, 2238412 bytes
+2026/02/04-19:02:28.438 4a4c Generated table #366@1: 42035 keys, 2205300 bytes
+2026/02/04-19:02:28.550 4a4c Generated table #367@1: 2463 keys, 2159565 bytes
+2026/02/04-19:02:28.724 4a4c Generated table #368@1: 12220 keys, 2192379 bytes
+2026/02/04-19:02:29.040 4a4c Generated table #369@1: 39597 keys, 2248182 bytes
+2026/02/04-19:02:29.314 4a4c Generated table #370@1: 48618 keys, 1572979 bytes
+2026/02/04-19:02:29.314 4a4c Compacted 1@1 + 6@2 files => 12616817 bytes
+2026/02/04-19:02:29.315 4a4c compacted to: files[ 0 0 6 0 0 0 0 ]
+2026/02/04-19:02:29.316 4a4c Delete type=2 #357
+2026/02/04-19:02:29.316 4a4c Delete type=2 #358
+2026/02/04-19:02:29.316 4a4c Delete type=2 #359
+2026/02/04-19:02:29.317 4a4c Delete type=2 #360
+2026/02/04-19:02:29.317 4a4c Delete type=2 #361
+2026/02/04-19:02:29.317 4a4c Delete type=2 #362
+2026/02/04-19:02:29.317 4a4c Delete type=2 #364
+2026/02/04-19:02:42.306 4198 Level-0 table #372: started
+2026/02/04-19:02:42.445 4198 Level-0 table #372: 1024986 bytes OK
+2026/02/04-19:02:42.448 4198 Delete type=0 #363
+2026/02/04-19:02:43.476 4198 Compacting 1@1 + 6@2 files
+2026/02/04-19:02:43.827 4198 Generated table #373@1: 43737 keys, 2237860 bytes
+2026/02/04-19:02:44.130 4198 Generated table #374@1: 42048 keys, 2204090 bytes
+2026/02/04-19:02:44.242 4198 Generated table #375@1: 2463 keys, 2159354 bytes
+2026/02/04-19:02:44.416 4198 Generated table #376@1: 12198 keys, 2192443 bytes
+2026/02/04-19:02:44.759 4198 Generated table #377@1: 39607 keys, 2248113 bytes
+2026/02/04-19:02:45.122 4198 Generated table #378@1: 67105 keys, 2090815 bytes
+2026/02/04-19:02:45.122 4198 Compacted 1@1 + 6@2 files => 13132675 bytes
+2026/02/04-19:02:45.124 4198 compacted to: files[ 0 0 6 0 0 0 0 ]
+2026/02/04-19:02:45.125 4198 Delete type=2 #365
+2026/02/04-19:02:45.125 4198 Delete type=2 #366
+2026/02/04-19:02:45.126 4198 Delete type=2 #367
+2026/02/04-19:02:45.126 4198 Delete type=2 #368
+2026/02/04-19:02:45.126 4198 Delete type=2 #369
+2026/02/04-19:02:45.126 4198 Delete type=2 #370
+2026/02/04-19:02:45.126 4198 Delete type=2 #372
+2026/02/04-19:03:07.393 4198 Level-0 table #380: started
+2026/02/04-19:03:07.508 4198 Level-0 table #380: 1052791 bytes OK
+2026/02/04-19:03:07.510 4198 Delete type=0 #371
+2026/02/04-19:03:07.620 404c Compacting 1@1 + 6@2 files
+2026/02/04-19:03:08.005 404c Generated table #381@1: 44356 keys, 2235832 bytes
+2026/02/04-19:03:08.374 404c Generated table #382@1: 42374 keys, 2205991 bytes
+2026/02/04-19:03:08.499 404c Generated table #383@1: 2450 keys, 2157427 bytes
+2026/02/04-19:03:08.800 404c Generated table #384@1: 11790 keys, 2190182 bytes
+2026/02/04-19:03:09.166 404c Generated table #385@1: 37887 keys, 2244998 bytes
+2026/02/04-19:03:09.556 404c Generated table #386@1: 66393 keys, 2220322 bytes
+2026/02/04-19:03:09.622 404c Generated table #387@1: 15032 keys, 329579 bytes
+2026/02/04-19:03:09.622 404c Compacted 1@1 + 6@2 files => 13584331 bytes
+2026/02/04-19:03:09.624 404c compacted to: files[ 0 0 7 0 0 0 0 ]
+2026/02/04-19:03:10.329 404c Level-0 table #389: started
+2026/02/04-19:03:10.461 404c Level-0 table #389: 1017158 bytes OK
+2026/02/04-19:03:10.472 404c Delete type=2 #373
+2026/02/04-19:03:10.478 404c Delete type=2 #374
+2026/02/04-19:03:10.478 404c Delete type=2 #375
+2026/02/04-19:03:10.478 404c Delete type=2 #376
+2026/02/04-19:03:10.478 404c Delete type=2 #377
+2026/02/04-19:03:10.478 404c Delete type=2 #378
+2026/02/04-19:03:10.478 404c Delete type=0 #379
+2026/02/04-19:03:10.478 404c Delete type=2 #380
+2026/02/04-19:03:10.546 404c Compacting 1@1 + 7@2 files
+2026/02/04-19:03:10.931 404c Generated table #390@1: 48253 keys, 2225847 bytes
+2026/02/04-19:03:11.355 404c Generated table #391@1: 45827 keys, 2221633 bytes
+2026/02/04-19:03:11.488 404c Generated table #392@1: 3036 keys, 2157595 bytes
+2026/02/04-19:03:11.630 404c Generated table #393@1: 6946 keys, 2163674 bytes
+2026/02/04-19:03:11.973 404c Generated table #394@1: 30052 keys, 2246427 bytes
+2026/02/04-19:03:12.315 404c Generated table #395@1: 57172 keys, 2226545 bytes
+2026/02/04-19:03:12.502 404c Generated table #396@1: 37895 keys, 821275 bytes
+2026/02/04-19:03:12.502 404c Compacted 1@1 + 7@2 files => 14062996 bytes
+2026/02/04-19:03:12.503 404c compacted to: files[ 0 0 7 0 0 0 0 ]
+2026/02/04-19:03:12.504 404c Delete type=2 #381
+2026/02/04-19:03:12.504 404c Delete type=2 #382
+2026/02/04-19:03:12.504 404c Delete type=2 #383
+2026/02/04-19:03:12.504 404c Delete type=2 #384
+2026/02/04-19:03:12.504 404c Delete type=2 #385
+2026/02/04-19:03:12.504 404c Delete type=2 #386
+2026/02/04-19:03:12.504 404c Delete type=2 #387
+2026/02/04-19:03:12.504 404c Delete type=2 #389
+2026/02/04-19:03:23.473 4198 Level-0 table #398: started
+2026/02/04-19:03:23.578 4198 Level-0 table #398: 1007733 bytes OK
+2026/02/04-19:03:23.580 4198 Delete type=0 #388
+2026/02/04-19:03:23.664 404c Compacting 1@1 + 7@2 files
+2026/02/04-19:03:24.081 404c Generated table #399@1: 44232 keys, 2239340 bytes
+2026/02/04-19:03:24.556 404c Generated table #400@1: 42483 keys, 2203660 bytes
+2026/02/04-19:03:24.687 404c Generated table #401@1: 2458 keys, 2157633 bytes
+2026/02/04-19:03:24.832 404c Generated table #402@1: 11984 keys, 2190866 bytes
+2026/02/04-19:03:25.094 404c Generated table #403@1: 37783 keys, 2244406 bytes
+2026/02/04-19:03:25.430 404c Generated table #404@1: 63938 keys, 2216337 bytes
+2026/02/04-19:03:25.544 404c Generated table #405@1: 25779 keys, 562384 bytes
+2026/02/04-19:03:25.544 404c Compacted 1@1 + 7@2 files => 13814626 bytes
+2026/02/04-19:03:25.545 404c compacted to: files[ 0 0 7 0 0 0 0 ]
+2026/02/04-19:03:33.373 404c Level-0 table #407: started
+2026/02/04-19:03:33.496 404c Level-0 table #407: 1014945 bytes OK
+2026/02/04-19:03:33.499 404c Delete type=2 #390
+2026/02/04-19:03:33.500 404c Delete type=2 #391
+2026/02/04-19:03:33.500 404c Delete type=2 #392
+2026/02/04-19:03:33.500 404c Delete type=2 #393
+2026/02/04-19:03:33.500 404c Delete type=2 #394
+2026/02/04-19:03:33.500 404c Delete type=2 #395
+2026/02/04-19:03:33.500 404c Delete type=2 #396
+2026/02/04-19:03:33.500 404c Delete type=0 #397
+2026/02/04-19:03:33.500 404c Delete type=2 #398
+2026/02/04-19:03:33.534 404c Compacting 1@1 + 7@2 files
+2026/02/04-19:03:33.951 404c Generated table #408@1: 44232 keys, 2239340 bytes
+2026/02/04-19:03:34.337 404c Generated table #409@1: 42483 keys, 2203660 bytes
+2026/02/04-19:03:34.473 404c Generated table #410@1: 2458 keys, 2157633 bytes
+2026/02/04-19:03:34.647 404c Generated table #411@1: 11984 keys, 2190866 bytes
+2026/02/04-19:03:35.025 404c Generated table #412@1: 37783 keys, 2244406 bytes
+2026/02/04-19:03:35.449 404c Generated table #413@1: 56387 keys, 2204038 bytes
+2026/02/04-19:03:35.712 404c Generated table #414@1: 51402 keys, 1117113 bytes
+2026/02/04-19:03:35.712 404c Compacted 1@1 + 7@2 files => 14357056 bytes
+2026/02/04-19:03:35.713 404c compacted to: files[ 0 0 7 0 0 0 0 ]
+2026/02/04-19:03:48.948 3f90 Level-0 table #416: started
+2026/02/04-19:03:49.070 3f90 Level-0 table #416: 1005857 bytes OK
+2026/02/04-19:03:49.072 3f90 Delete type=2 #399
+2026/02/04-19:03:49.072 3f90 Delete type=2 #400
+2026/02/04-19:03:49.072 3f90 Delete type=2 #401
+2026/02/04-19:03:49.072 3f90 Delete type=2 #402
+2026/02/04-19:03:49.072 3f90 Delete type=2 #403
+2026/02/04-19:03:49.072 3f90 Delete type=2 #404
+2026/02/04-19:03:49.072 3f90 Delete type=2 #405
+2026/02/04-19:03:49.072 3f90 Delete type=0 #406
+2026/02/04-19:03:49.073 3f90 Delete type=2 #407
+2026/02/04-19:03:49.089 3f90 Compacting 1@1 + 7@2 files
+2026/02/04-19:03:49.486 3f90 Generated table #417@1: 47590 keys, 2240247 bytes
+2026/02/04-19:03:49.821 3f90 Generated table #418@1: 44451 keys, 2208830 bytes
+2026/02/04-19:03:49.984 3f90 Generated table #419@1: 2400 keys, 2156786 bytes
+2026/02/04-19:03:50.150 3f90 Generated table #420@1: 9455 keys, 2178192 bytes
+2026/02/04-19:03:50.725 3f90 Generated table #421@1: 37154 keys, 2240961 bytes
+2026/02/04-19:03:51.030 3f90 Generated table #422@1: 45103 keys, 2207430 bytes
+2026/02/04-19:03:51.555 3f90 Generated table #423@1: 71018 keys, 1545918 bytes
+2026/02/04-19:03:51.556 3f90 Compacted 1@1 + 7@2 files => 14778364 bytes
+2026/02/04-19:03:51.557 3f90 compacted to: files[ 0 0 7 0 0 0 0 ]
+2026/02/04-19:03:51.664 3f90 Level-0 table #425: started
+2026/02/04-19:03:51.737 3f90 Level-0 table #425: 1059600 bytes OK
+2026/02/04-19:03:51.739 3f90 Delete type=2 #408
+2026/02/04-19:03:51.739 3f90 Delete type=2 #409
+2026/02/04-19:03:51.739 3f90 Delete type=2 #410
+2026/02/04-19:03:51.739 3f90 Delete type=2 #411
+2026/02/04-19:03:51.739 3f90 Delete type=2 #412
+2026/02/04-19:03:51.739 3f90 Delete type=2 #413
+2026/02/04-19:03:51.739 3f90 Delete type=2 #414
+2026/02/04-19:03:51.739 3f90 Delete type=0 #415
+2026/02/04-19:03:51.739 3f90 Delete type=2 #416
+2026/02/04-19:03:51.763 3f90 Compacting 1@1 + 7@2 files
+2026/02/04-19:03:52.204 3f90 Generated table #426@1: 46421 keys, 2241472 bytes
+2026/02/04-19:03:52.489 3f90 Generated table #427@1: 43929 keys, 2206906 bytes
+2026/02/04-19:03:52.608 3f90 Generated table #428@1: 2411 keys, 2158873 bytes
+2026/02/04-19:03:52.795 3f90 Generated table #429@1: 10621 keys, 2183214 bytes
+2026/02/04-19:03:53.222 3f90 Generated table #430@1: 36372 keys, 2240689 bytes
+2026/02/04-19:03:53.555 3f90 Generated table #431@1: 48855 keys, 2208119 bytes
+2026/02/04-19:03:53.898 3f90 Generated table #432@1: 66810 keys, 1454653 bytes
+2026/02/04-19:03:53.898 3f90 Compacted 1@1 + 7@2 files => 14693926 bytes
+2026/02/04-19:03:53.899 3f90 compacted to: files[ 0 0 7 0 0 0 0 ]
+2026/02/04-19:03:53.900 3f90 Delete type=2 #417
+2026/02/04-19:03:53.900 3f90 Delete type=2 #418
+2026/02/04-19:03:53.900 3f90 Delete type=2 #419
+2026/02/04-19:03:53.900 3f90 Delete type=2 #420
+2026/02/04-19:03:53.901 3f90 Delete type=2 #421
+2026/02/04-19:03:53.901 3f90 Delete type=2 #422
+2026/02/04-19:03:53.901 3f90 Delete type=2 #423
+2026/02/04-19:03:53.901 3f90 Delete type=2 #425
+2026/02/04-19:04:23.186 3f90 Level-0 table #434: started
+2026/02/04-19:04:23.315 3f90 Level-0 table #434: 1147042 bytes OK
+2026/02/04-19:04:23.316 3f90 Delete type=0 #424
+2026/02/04-19:04:23.325 3f90 Compacting 1@1 + 7@2 files
+2026/02/04-19:04:24.031 3f90 Generated table #435@1: 45099 keys, 2239281 bytes
+2026/02/04-19:04:24.382 3f90 Generated table #436@1: 43632 keys, 2207585 bytes
+2026/02/04-19:04:24.576 3f90 Generated table #437@1: 2416 keys, 2158735 bytes
+2026/02/04-19:04:24.852 3f90 Generated table #438@1: 11013 keys, 2185320 bytes
+2026/02/04-19:04:25.248 3f90 Generated table #439@1: 36363 keys, 2240843 bytes
+2026/02/04-19:04:25.615 3f90 Generated table #440@1: 44658 keys, 2197289 bytes
+2026/02/04-19:04:26.100 3f90 Generated table #441@1: 85167 keys, 1860784 bytes
+2026/02/04-19:04:26.100 3f90 Compacted 1@1 + 7@2 files => 15089837 bytes
+2026/02/04-19:04:26.101 3f90 compacted to: files[ 0 0 7 0 0 0 0 ]
+2026/02/04-19:04:27.296 3f90 Level-0 table #443: started
+2026/02/04-19:04:27.413 3f90 Level-0 table #443: 988782 bytes OK
+2026/02/04-19:04:27.415 3f90 Delete type=2 #426
+2026/02/04-19:04:27.415 3f90 Delete type=2 #427
+2026/02/04-19:04:27.416 3f90 Delete type=2 #428
+2026/02/04-19:04:27.416 3f90 Delete type=2 #429
+2026/02/04-19:04:27.416 3f90 Delete type=2 #430
+2026/02/04-19:04:27.416 3f90 Delete type=2 #431
+2026/02/04-19:04:27.416 3f90 Delete type=2 #432
+2026/02/04-19:04:27.416 3f90 Delete type=0 #433
+2026/02/04-19:04:27.416 3f90 Delete type=2 #434
+2026/02/04-19:04:27.451 3f90 Compacting 1@1 + 7@2 files
+2026/02/04-19:04:27.790 3f90 Generated table #444@1: 47476 keys, 2240310 bytes
+2026/02/04-19:04:28.185 3f90 Generated table #445@1: 45013 keys, 2207627 bytes
+2026/02/04-19:04:28.340 3f90 Generated table #446@1: 2390 keys, 2158831 bytes
+2026/02/04-19:04:28.553 3f90 Generated table #447@1: 9126 keys, 2176629 bytes
+2026/02/04-19:04:28.981 3f90 Generated table #448@1: 36377 keys, 2241112 bytes
+2026/02/04-19:04:29.308 3f90 Generated table #449@1: 37526 keys, 2196980 bytes
+2026/02/04-19:04:29.760 3f90 Level-0 table #452: started
+2026/02/04-19:04:29.853 3f90 Level-0 table #452: 992251 bytes OK
+2026/02/04-19:04:29.855 3f90 Delete type=0 #442
+2026/02/04-19:04:29.917 3f90 Generated table #450@1: 96458 keys, 2106492 bytes
+2026/02/04-19:04:29.917 3f90 Compacted 1@1 + 7@2 files => 15327981 bytes
+2026/02/04-19:04:29.918 3f90 compacted to: files[ 1 0 7 0 0 0 0 ]
+2026/02/04-19:04:29.920 3f90 Moved #452 to level-1 992251 bytes OK: files[ 0 1 7 0 0 0 0 ]
+2026/02/04-19:04:29.923 3f90 Compacting 1@1 + 7@2 files
+2026/02/04-19:04:30.354 3f90 Generated table #453@1: 45171 keys, 2237617 bytes
+2026/02/04-19:04:30.771 3f90 Generated table #454@1: 43118 keys, 2204839 bytes
+2026/02/04-19:04:30.888 3f90 Generated table #455@1: 2439 keys, 2157285 bytes
+2026/02/04-19:04:31.086 3f90 Generated table #456@1: 11605 keys, 2188699 bytes
+2026/02/04-19:04:31.381 3f90 Generated table #457@1: 36479 keys, 2240389 bytes
+2026/02/04-19:04:31.679 3f90 Generated table #458@1: 43318 keys, 2193965 bytes
+2026/02/04-19:04:32.198 3f90 Generated table #459@1: 91860 keys, 2004294 bytes
+2026/02/04-19:04:32.198 3f90 Compacted 1@1 + 7@2 files => 15227088 bytes
+2026/02/04-19:04:32.199 3f90 compacted to: files[ 0 0 7 0 0 0 0 ]
+2026/02/04-19:04:32.201 3f90 Delete type=2 #435
+2026/02/04-19:04:32.201 3f90 Delete type=2 #436
+2026/02/04-19:04:32.201 3f90 Delete type=2 #437
+2026/02/04-19:04:32.201 3f90 Delete type=2 #438
+2026/02/04-19:04:32.201 3f90 Delete type=2 #439
+2026/02/04-19:04:32.201 3f90 Delete type=2 #440
+2026/02/04-19:04:32.201 3f90 Delete type=2 #441
+2026/02/04-19:04:32.201 3f90 Delete type=2 #443
+2026/02/04-19:04:37.079 3f90 Level-0 table #461: started
+2026/02/04-19:04:37.201 3f90 Level-0 table #461: 1030244 bytes OK
+2026/02/04-19:04:37.204 3f90 Delete type=2 #444
+2026/02/04-19:04:37.205 3f90 Delete type=2 #445
+2026/02/04-19:04:37.205 3f90 Delete type=2 #446
+2026/02/04-19:04:37.205 3f90 Delete type=2 #447
+2026/02/04-19:04:37.205 3f90 Delete type=2 #448
+2026/02/04-19:04:37.206 3f90 Delete type=2 #449
+2026/02/04-19:04:37.206 3f90 Delete type=2 #450
+2026/02/04-19:04:37.206 3f90 Delete type=0 #451
+2026/02/04-19:04:37.206 3f90 Delete type=2 #452
+2026/02/04-19:04:37.234 4198 Compacting 1@1 + 7@2 files
+2026/02/04-19:04:37.557 4198 Generated table #462@1: 45934 keys, 2239500 bytes
+2026/02/04-19:04:37.979 4198 Generated table #463@1: 43640 keys, 2205184 bytes
+2026/02/04-19:04:38.105 4198 Generated table #464@1: 2427 keys, 2158078 bytes
+2026/02/04-19:04:38.320 4198 Generated table #465@1: 11387 keys, 2187773 bytes
+2026/02/04-19:04:38.612 4198 Generated table #466@1: 36465 keys, 2240750 bytes
+2026/02/04-19:04:38.910 4198 Generated table #467@1: 37251 keys, 2186747 bytes
+2026/02/04-19:04:39.370 4198 Generated table #468@1: 104242 keys, 2256020 bytes
+2026/02/04-19:04:39.402 4198 Generated table #469@1: 7302 keys, 164855 bytes
+2026/02/04-19:04:39.402 4198 Compacted 1@1 + 7@2 files => 15638907 bytes
+2026/02/04-19:04:39.403 4198 compacted to: files[ 0 0 8 0 0 0 0 ]
+2026/02/04-19:04:39.403 4198 Delete type=2 #453
+2026/02/04-19:04:39.403 4198 Delete type=2 #454
+2026/02/04-19:04:39.403 4198 Delete type=2 #455
+2026/02/04-19:04:39.403 4198 Delete type=2 #456
+2026/02/04-19:04:39.403 4198 Delete type=2 #457
+2026/02/04-19:04:39.404 4198 Delete type=2 #458
+2026/02/04-19:04:39.404 4198 Delete type=2 #459
+2026/02/04-19:04:39.404 4198 Delete type=2 #461
+2026/02/04-19:05:00.363 4198 Level-0 table #471: started
+2026/02/04-19:05:00.523 4198 Level-0 table #471: 1028049 bytes OK
+2026/02/04-19:05:00.525 4198 Delete type=0 #460
+2026/02/04-19:05:00.553 404c Compacting 1@1 + 8@2 files
+2026/02/04-19:05:01.053 404c Generated table #472@1: 45388 keys, 2241110 bytes
+2026/02/04-19:05:01.372 404c Generated table #473@1: 43627 keys, 2206344 bytes
+2026/02/04-19:05:01.522 404c Generated table #474@1: 2426 keys, 2158498 bytes
+2026/02/04-19:05:01.690 404c Generated table #475@1: 11409 keys, 2187284 bytes
+2026/02/04-19:05:02.087 404c Generated table #476@1: 35026 keys, 2239938 bytes
+2026/02/04-19:05:02.478 404c Generated table #477@1: 32371 keys, 2180005 bytes
+2026/02/04-19:05:03.423 404c Generated table #478@1: 103738 keys, 2256708 bytes
+2026/02/04-19:05:03.569 404c Generated table #479@1: 27846 keys, 615063 bytes
+2026/02/04-19:05:03.569 404c Compacted 1@1 + 8@2 files => 16084950 bytes
+2026/02/04-19:05:03.570 404c compacted to: files[ 0 0 8 0 0 0 0 ]
+2026/02/04-19:05:04.401 3f90 Level-0 table #481: started
+2026/02/04-19:05:04.552 3f90 Level-0 table #481: 1013083 bytes OK
+2026/02/04-19:05:04.554 3f90 Delete type=2 #462
+2026/02/04-19:05:04.555 3f90 Delete type=2 #463
+2026/02/04-19:05:04.555 3f90 Delete type=2 #464
+2026/02/04-19:05:04.555 3f90 Delete type=2 #465
+2026/02/04-19:05:04.555 3f90 Delete type=2 #466
+2026/02/04-19:05:04.555 3f90 Delete type=2 #467
+2026/02/04-19:05:04.556 3f90 Delete type=2 #468
+2026/02/04-19:05:04.557 3f90 Delete type=2 #469
+2026/02/04-19:05:04.557 3f90 Delete type=0 #470
+2026/02/04-19:05:04.557 3f90 Delete type=2 #471
+2026/02/04-19:05:04.577 3f90 Compacting 1@1 + 8@2 files
+2026/02/04-19:05:04.983 3f90 Generated table #482@1: 48505 keys, 2230664 bytes
+2026/02/04-19:05:05.517 3f90 Generated table #483@1: 46545 keys, 2217257 bytes
+2026/02/04-19:05:05.718 3f90 Generated table #484@1: 2806 keys, 2157124 bytes
+2026/02/04-19:05:05.928 3f90 Generated table #485@1: 7354 keys, 2165879 bytes
+2026/02/04-19:05:06.491 3f90 Generated table #486@1: 30401 keys, 2245064 bytes
+2026/02/04-19:05:06.961 3f90 Generated table #487@1: 21085 keys, 2177596 bytes
+2026/02/04-19:05:07.528 3f90 Generated table #488@1: 103997 keys, 2255316 bytes
+2026/02/04-19:05:08.058 3f90 Generated table #489@1: 52030 keys, 1141827 bytes
+2026/02/04-19:05:08.058 3f90 Compacted 1@1 + 8@2 files => 16590727 bytes
+2026/02/04-19:05:08.060 3f90 compacted to: files[ 0 0 8 0 0 0 0 ]
+2026/02/04-19:05:10.153 3f90 Level-0 table #491: started
+2026/02/04-19:05:10.291 3f90 Level-0 table #491: 995018 bytes OK
+2026/02/04-19:05:10.293 3f90 Delete type=2 #472
+2026/02/04-19:05:10.294 3f90 Delete type=2 #473
+2026/02/04-19:05:10.294 3f90 Delete type=2 #474
+2026/02/04-19:05:10.294 3f90 Delete type=2 #475
+2026/02/04-19:05:10.294 3f90 Delete type=2 #476
+2026/02/04-19:05:10.294 3f90 Delete type=2 #477
+2026/02/04-19:05:10.294 3f90 Delete type=2 #478
+2026/02/04-19:05:10.294 3f90 Delete type=2 #479
+2026/02/04-19:05:10.294 3f90 Delete type=0 #480
+2026/02/04-19:05:10.294 3f90 Delete type=2 #481
+2026/02/04-19:05:10.322 3f90 Compacting 1@1 + 8@2 files
+2026/02/04-19:05:10.800 3f90 Generated table #492@1: 45556 keys, 2239562 bytes
+2026/02/04-19:05:11.079 3f90 Generated table #493@1: 44091 keys, 2206773 bytes
+2026/02/04-19:05:11.198 3f90 Generated table #494@1: 2422 keys, 2157263 bytes
+2026/02/04-19:05:11.374 3f90 Generated table #495@1: 11213 keys, 2186369 bytes
+2026/02/04-19:05:11.727 3f90 Generated table #496@1: 35090 keys, 2238773 bytes
+2026/02/04-19:05:11.975 3f90 Generated table #497@1: 28265 keys, 2175608 bytes
+2026/02/04-19:05:12.731 3f90 Generated table #498@1: 103698 keys, 2255280 bytes
+2026/02/04-19:05:12.899 3f90 Generated table #499@1: 40485 keys, 890682 bytes
+2026/02/04-19:05:12.899 3f90 Compacted 1@1 + 8@2 files => 16350310 bytes
+2026/02/04-19:05:12.900 3f90 compacted to: files[ 0 0 8 0 0 0 0 ]
+2026/02/04-19:05:12.901 3f90 Delete type=2 #482
+2026/02/04-19:05:12.901 3f90 Delete type=2 #483
+2026/02/04-19:05:12.901 3f90 Delete type=2 #484
+2026/02/04-19:05:12.902 3f90 Delete type=2 #485
+2026/02/04-19:05:12.902 3f90 Delete type=2 #486
+2026/02/04-19:05:12.902 3f90 Delete type=2 #487
+2026/02/04-19:05:12.902 3f90 Delete type=2 #488
+2026/02/04-19:05:12.902 3f90 Delete type=2 #489
+2026/02/04-19:05:12.902 3f90 Delete type=2 #491
+2026/02/04-19:05:30.227 3f90 Level-0 table #501: started
+2026/02/04-19:05:30.376 3f90 Level-0 table #501: 987600 bytes OK
+2026/02/04-19:05:30.378 3f90 Delete type=0 #490
+2026/02/04-19:05:31.035 3f90 Compacting 1@1 + 8@2 files
+2026/02/04-19:05:31.524 3f90 Generated table #502@1: 45385 keys, 2237856 bytes
+2026/02/04-19:05:31.906 3f90 Generated table #503@1: 44094 keys, 2207750 bytes
+2026/02/04-19:05:31.994 3f90 Generated table #504@1: 2422 keys, 2157263 bytes
+2026/02/04-19:05:32.134 3f90 Generated table #505@1: 11213 keys, 2186369 bytes
+2026/02/04-19:05:32.437 3f90 Generated table #506@1: 35113 keys, 2239204 bytes
+2026/02/04-19:05:32.751 3f90 Generated table #507@1: 24726 keys, 2172015 bytes
+2026/02/04-19:05:33.341 3f90 Generated table #508@1: 103636 keys, 2255367 bytes
+2026/02/04-19:05:33.630 3f90 Generated table #509@1: 54333 keys, 1193078 bytes
+2026/02/04-19:05:33.630 3f90 Compacted 1@1 + 8@2 files => 16648902 bytes
+2026/02/04-19:05:33.631 3f90 compacted to: files[ 0 0 8 0 0 0 0 ]
+2026/02/04-19:05:38.946 3f90 Level-0 table #511: started
+2026/02/04-19:05:39.028 3f90 Level-0 table #511: 882549 bytes OK
+2026/02/04-19:05:39.030 3f90 Delete type=2 #492
+2026/02/04-19:05:39.030 3f90 Delete type=2 #493
+2026/02/04-19:05:39.030 3f90 Delete type=2 #494
+2026/02/04-19:05:39.030 3f90 Delete type=2 #495
+2026/02/04-19:05:39.030 3f90 Delete type=2 #496
+2026/02/04-19:05:39.030 3f90 Delete type=2 #497
+2026/02/04-19:05:39.031 3f90 Delete type=2 #498
+2026/02/04-19:05:39.031 3f90 Delete type=2 #499
+2026/02/04-19:05:39.031 3f90 Delete type=0 #500
+2026/02/04-19:05:39.031 3f90 Delete type=2 #501
+2026/02/04-19:05:39.049 3f90 Compacting 1@1 + 8@2 files
+2026/02/04-19:05:39.512 3f90 Generated table #512@1: 45527 keys, 2240281 bytes
+2026/02/04-19:05:39.859 3f90 Generated table #513@1: 44124 keys, 2207951 bytes
+2026/02/04-19:05:39.976 3f90 Generated table #514@1: 2422 keys, 2159392 bytes
+2026/02/04-19:05:40.153 3f90 Generated table #515@1: 11178 keys, 2186594 bytes
+2026/02/04-19:05:40.522 3f90 Generated table #516@1: 35131 keys, 2239597 bytes
+2026/02/04-19:05:41.071 3f90 Generated table #517@1: 23459 keys, 2169296 bytes
+2026/02/04-19:05:41.758 3f90 Generated table #518@1: 103647 keys, 2256479 bytes
+2026/02/04-19:05:42.005 3f90 Generated table #519@1: 59077 keys, 1297127 bytes
+2026/02/04-19:05:42.005 3f90 Compacted 1@1 + 8@2 files => 16756717 bytes
+2026/02/04-19:05:42.006 3f90 compacted to: files[ 0 0 8 0 0 0 0 ]
+2026/02/04-19:05:42.006 3f90 Delete type=2 #502
+2026/02/04-19:05:42.006 3f90 Delete type=2 #503
+2026/02/04-19:05:42.007 3f90 Delete type=2 #504
+2026/02/04-19:05:42.007 3f90 Delete type=2 #505
+2026/02/04-19:05:42.007 3f90 Delete type=2 #506
+2026/02/04-19:05:42.007 3f90 Delete type=2 #507
+2026/02/04-19:05:42.007 3f90 Delete type=2 #508
+2026/02/04-19:05:42.007 3f90 Delete type=2 #509
+2026/02/04-19:05:42.007 3f90 Delete type=2 #511
+2026/02/04-19:05:42.374 3f90 Level-0 table #521: started
+2026/02/04-19:05:42.445 3f90 Level-0 table #521: 1047455 bytes OK
+2026/02/04-19:05:42.447 3f90 Delete type=0 #510
+2026/02/04-19:05:42.456 3f90 Compacting 1@1 + 8@2 files
+2026/02/04-19:05:42.714 3f90 Generated table #522@1: 49525 keys, 2228612 bytes
+2026/02/04-19:05:43.039 3f90 Generated table #523@1: 46335 keys, 2222086 bytes
+2026/02/04-19:05:43.208 3f90 Generated table #524@1: 4301 keys, 2159496 bytes
+2026/02/04-19:05:43.313 3f90 Generated table #525@1: 5965 keys, 2161372 bytes
+2026/02/04-19:05:43.721 3f90 Generated table #526@1: 28744 keys, 2246928 bytes
+2026/02/04-19:05:43.916 3f90 Generated table #527@1: 19043 keys, 2176016 bytes
+2026/02/04-19:05:44.370 3f90 Generated table #528@1: 97020 keys, 2246041 bytes
+2026/02/04-19:05:44.691 3f90 Generated table #529@1: 83763 keys, 1834993 bytes
+2026/02/04-19:05:44.691 3f90 Compacted 1@1 + 8@2 files => 17275544 bytes
+2026/02/04-19:05:44.692 3f90 compacted to: files[ 0 0 8 0 0 0 0 ]
+2026/02/04-19:05:44.693 3f90 Delete type=2 #512
+2026/02/04-19:05:44.693 3f90 Delete type=2 #513
+2026/02/04-19:05:44.693 3f90 Delete type=2 #514
+2026/02/04-19:05:44.694 3f90 Delete type=2 #515
+2026/02/04-19:05:44.694 3f90 Delete type=2 #516
+2026/02/04-19:05:44.694 3f90 Delete type=2 #517
+2026/02/04-19:05:44.694 3f90 Delete type=2 #518
+2026/02/04-19:05:44.694 3f90 Delete type=2 #519
+2026/02/04-19:05:44.694 3f90 Delete type=2 #521
+2026/02/04-19:06:07.918 404c Level-0 table #531: started
+2026/02/04-19:06:08.071 404c Level-0 table #531: 1078781 bytes OK
+2026/02/04-19:06:08.073 404c Delete type=0 #520
+2026/02/04-19:06:08.471 d30 Compacting 1@1 + 8@2 files
+2026/02/04-19:06:08.849 d30 Generated table #532@1: 45894 keys, 2239317 bytes
+2026/02/04-19:06:09.248 d30 Generated table #533@1: 44707 keys, 2207303 bytes
+2026/02/04-19:06:09.349 d30 Generated table #534@1: 2412 keys, 2157615 bytes
+2026/02/04-19:06:09.523 d30 Generated table #535@1: 10694 keys, 2183572 bytes
+2026/02/04-19:06:09.830 d30 Generated table #536@1: 33942 keys, 2236455 bytes
+2026/02/04-19:06:10.023 d30 Generated table #537@1: 19741 keys, 2169728 bytes
+2026/02/04-19:06:10.498 d30 Generated table #538@1: 103413 keys, 2254311 bytes
+2026/02/04-19:06:10.791 d30 Generated table #539@1: 68494 keys, 1503091 bytes
+2026/02/04-19:06:10.791 d30 Compacted 1@1 + 8@2 files => 16951392 bytes
+2026/02/04-19:06:10.792 d30 compacted to: files[ 0 0 8 0 0 0 0 ]
+2026/02/04-19:06:10.793 d30 Delete type=2 #522
+2026/02/04-19:06:10.793 d30 Delete type=2 #523
+2026/02/04-19:06:10.794 d30 Delete type=2 #524
+2026/02/04-19:06:10.794 d30 Delete type=2 #525
+2026/02/04-19:06:10.794 d30 Delete type=2 #526
+2026/02/04-19:06:10.794 d30 Delete type=2 #527
+2026/02/04-19:06:10.794 d30 Delete type=2 #528
+2026/02/04-19:06:10.794 d30 Delete type=2 #529
+2026/02/04-19:06:10.794 d30 Delete type=2 #531
+2026/02/04-19:06:17.562 404c Level-0 table #541: started
+2026/02/04-19:06:17.692 404c Level-0 table #541: 1071657 bytes OK
+2026/02/04-19:06:17.696 404c Delete type=0 #530
+2026/02/04-19:06:17.718 404c Compacting 1@1 + 5@2 files
+2026/02/04-19:06:18.057 404c Generated table #542@1: 50408 keys, 2227064 bytes
+2026/02/04-19:06:18.411 404c Generated table #543@1: 45674 keys, 2222419 bytes
+2026/02/04-19:06:18.558 404c Generated table #544@1: 5708 keys, 2160050 bytes
+2026/02/04-19:06:18.709 404c Generated table #545@1: 4485 keys, 2158740 bytes
+2026/02/04-19:06:19.045 404c Generated table #546@1: 29455 keys, 2248830 bytes
+2026/02/04-19:06:19.117 404c Generated table #547@1: 11582 keys, 530396 bytes
+2026/02/04-19:06:19.118 404c Compacted 1@1 + 5@2 files => 11547499 bytes
+2026/02/04-19:06:19.119 404c compacted to: files[ 0 0 9 0 0 0 0 ]
+2026/02/04-19:06:19.119 404c Delete type=2 #532
+2026/02/04-19:06:19.119 404c Delete type=2 #533
+2026/02/04-19:06:19.119 404c Delete type=2 #534
+2026/02/04-19:06:19.120 404c Delete type=2 #535
+2026/02/04-19:06:19.120 404c Delete type=2 #536
+2026/02/04-19:06:19.120 404c Delete type=2 #541
+2026/02/04-19:06:24.276 5e00 Level-0 table #549: started
+2026/02/04-19:06:24.389 5e00 Level-0 table #549: 652406 bytes OK
+2026/02/04-19:06:24.392 5e00 Delete type=0 #540
+2026/02/04-19:06:24.394 5e00 Manual compaction at level-0 from '\x00A\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00B\x00\x00\x00' @ 0 : 0; will stop at (end)
+2026/02/04-19:06:29.442 404c Compacting 1@1 + 9@2 files
+2026/02/04-19:06:29.941 404c Generated table #550@1: 46288 keys, 2239381 bytes
+2026/02/04-19:06:30.440 404c Generated table #551@1: 45223 keys, 2208482 bytes
+2026/02/04-19:06:30.546 404c Generated table #552@1: 2411 keys, 2158527 bytes
+2026/02/04-19:06:30.701 404c Generated table #553@1: 10444 keys, 2181276 bytes
+2026/02/04-19:06:31.011 404c Generated table #554@1: 33974 keys, 2236789 bytes
+2026/02/04-19:06:31.195 404c Generated table #555@1: 18409 keys, 2169555 bytes
+2026/02/04-19:06:31.676 404c Generated table #556@1: 103499 keys, 2254228 bytes
+2026/02/04-19:06:32.143 404c Generated table #557@1: 70290 keys, 1543052 bytes
+2026/02/04-19:06:32.143 404c Compacted 1@1 + 9@2 files => 16991290 bytes
+2026/02/04-19:06:32.145 404c compacted to: files[ 0 0 8 0 0 0 0 ]
+2026/02/04-19:06:32.146 404c Delete type=2 #537
+2026/02/04-19:06:32.146 404c Delete type=2 #538
+2026/02/04-19:06:32.146 404c Delete type=2 #539
+2026/02/04-19:06:32.146 404c Delete type=2 #542
+2026/02/04-19:06:32.146 404c Delete type=2 #543
+2026/02/04-19:06:32.146 404c Delete type=2 #544
+2026/02/04-19:06:32.146 404c Delete type=2 #545
+2026/02/04-19:06:32.146 404c Delete type=2 #546
+2026/02/04-19:06:32.146 404c Delete type=2 #547
+2026/02/04-19:06:32.146 404c Delete type=2 #549
+2026/02/04-19:06:53.065 404c Level-0 table #559: started
+2026/02/04-19:06:53.147 404c Level-0 table #559: 1027614 bytes OK
+2026/02/04-19:06:53.149 404c Delete type=0 #548
+2026/02/04-19:06:53.166 404c Compacting 1@1 + 5@2 files
+2026/02/04-19:06:53.538 404c Generated table #560@1: 50551 keys, 2229825 bytes
+2026/02/04-19:06:53.958 404c Generated table #561@1: 46317 keys, 2220981 bytes
+2026/02/04-19:06:54.193 404c Generated table #562@1: 5313 keys, 2158533 bytes
+2026/02/04-19:06:54.366 404c Generated table #563@1: 4752 keys, 2158202 bytes
+2026/02/04-19:06:54.770 404c Generated table #564@1: 29312 keys, 2247522 bytes
+2026/02/04-19:06:54.849 404c Generated table #565@1: 11269 keys, 494044 bytes
+2026/02/04-19:06:54.849 404c Compacted 1@1 + 5@2 files => 11509107 bytes
+2026/02/04-19:06:54.850 404c compacted to: files[ 0 0 9 0 0 0 0 ]
+2026/02/04-19:07:26.754 3f90 Level-0 table #567: started
+2026/02/04-19:07:26.915 3f90 Level-0 table #567: 1079568 bytes OK
+2026/02/04-19:07:26.917 3f90 Delete type=2 #550
+2026/02/04-19:07:26.917 3f90 Delete type=2 #551
+2026/02/04-19:07:26.917 3f90 Delete type=2 #552
+2026/02/04-19:07:26.917 3f90 Delete type=2 #553
+2026/02/04-19:07:26.917 3f90 Delete type=2 #554
+2026/02/04-19:07:26.917 3f90 Delete type=0 #558
+2026/02/04-19:07:26.918 3f90 Delete type=2 #559
+2026/02/04-19:07:27.071 3f90 Compacting 1@1 + 9@2 files
+2026/02/04-19:07:27.468 3f90 Generated table #568@1: 47994 keys, 2244180 bytes
+2026/02/04-19:07:28.121 3f90 Generated table #569@1: 46307 keys, 2210180 bytes
+2026/02/04-19:07:28.224 3f90 Generated table #570@1: 2400 keys, 2156786 bytes
+2026/02/04-19:07:28.393 3f90 Generated table #571@1: 9200 keys, 2176568 bytes
+2026/02/04-19:07:28.730 3f90 Generated table #572@1: 33033 keys, 2237425 bytes
+2026/02/04-19:07:28.909 3f90 Generated table #573@1: 12992 keys, 2164069 bytes
+2026/02/04-19:07:29.035 3f90 Level-0 table #576: started
+2026/02/04-19:07:29.108 3f90 Level-0 table #576: 1040547 bytes OK
+2026/02/04-19:07:29.110 3f90 Delete type=0 #566
+2026/02/04-19:07:29.479 3f90 Generated table #574@1: 104750 keys, 2256176 bytes
+2026/02/04-19:07:29.852 3f90 Generated table #577@1: 77645 keys, 1703315 bytes
+2026/02/04-19:07:29.852 3f90 Compacted 1@1 + 9@2 files => 17148699 bytes
+2026/02/04-19:07:29.853 3f90 compacted to: files[ 1 0 8 0 0 0 0 ]
+2026/02/04-19:07:29.855 3f90 Moved #576 to level-1 1040547 bytes OK: files[ 0 1 8 0 0 0 0 ]
+2026/02/04-19:07:29.873 3f90 Compacting 1@1 + 5@2 files
+2026/02/04-19:07:30.156 3f90 Generated table #578@1: 51696 keys, 2223547 bytes
+2026/02/04-19:07:30.505 3f90 Generated table #579@1: 44759 keys, 2226352 bytes
+2026/02/04-19:07:30.648 3f90 Generated table #580@1: 8751 keys, 2164159 bytes
+2026/02/04-19:07:30.747 3f90 Generated table #581@1: 2530 keys, 2154546 bytes
+2026/02/04-19:07:31.083 3f90 Generated table #582@1: 29617 keys, 2250532 bytes
+2026/02/04-19:07:31.161 3f90 Generated table #583@1: 10756 keys, 553127 bytes
+2026/02/04-19:07:31.162 3f90 Compacted 1@1 + 5@2 files => 11572263 bytes
+2026/02/04-19:07:31.163 3f90 compacted to: files[ 0 0 9 0 0 0 0 ]
+2026/02/04-19:07:31.164 3f90 Delete type=2 #555
+2026/02/04-19:07:31.164 3f90 Delete type=2 #556
+2026/02/04-19:07:31.164 3f90 Delete type=2 #557
+2026/02/04-19:07:31.164 3f90 Delete type=2 #560
+2026/02/04-19:07:31.164 3f90 Delete type=2 #561
+2026/02/04-19:07:31.164 3f90 Delete type=2 #562
+2026/02/04-19:07:31.164 3f90 Delete type=2 #563
+2026/02/04-19:07:31.164 3f90 Delete type=2 #564
+2026/02/04-19:07:31.164 3f90 Delete type=2 #565
+2026/02/04-19:07:31.164 3f90 Delete type=2 #567
+2026/02/04-19:07:31.164 3f90 Delete type=2 #568
+2026/02/04-19:07:31.165 3f90 Delete type=2 #569
+2026/02/04-19:07:31.165 3f90 Delete type=2 #570
+2026/02/04-19:07:31.165 3f90 Delete type=2 #571
+2026/02/04-19:07:31.165 3f90 Delete type=2 #572
+2026/02/04-19:07:31.165 3f90 Delete type=2 #576
+2026/02/04-19:08:07.251 404c Level-0 table #585: started
+2026/02/04-19:08:07.485 404c Level-0 table #585: 1085793 bytes OK
+2026/02/04-19:08:07.492 404c Delete type=0 #575
+2026/02/04-19:08:07.519 404c Compacting 1@1 + 9@2 files
+2026/02/04-19:08:08.039 404c Generated table #586@1: 50796 keys, 2241076 bytes
+2026/02/04-19:08:08.420 404c Generated table #587@1: 47869 keys, 2214749 bytes
+2026/02/04-19:08:08.564 404c Generated table #588@1: 2808 keys, 2156020 bytes
+2026/02/04-19:08:08.713 404c Generated table #589@1: 7035 keys, 2162968 bytes
+2026/02/04-19:08:09.059 404c Generated table #590@1: 28393 keys, 2244490 bytes
+2026/02/04-19:08:09.249 404c Generated table #591@1: 18159 keys, 2174562 bytes
+2026/02/04-19:08:09.458 404c Level-0 table #594: started
+2026/02/04-19:08:09.526 404c Level-0 table #594: 1084763 bytes OK
+2026/02/04-19:08:09.528 404c Delete type=0 #584
+2026/02/04-19:08:09.775 404c Generated table #592@1: 95752 keys, 2246242 bytes
+2026/02/04-19:08:10.206 404c Generated table #595@1: 88902 keys, 1949366 bytes
+2026/02/04-19:08:10.206 404c Compacted 1@1 + 9@2 files => 17389473 bytes
+2026/02/04-19:08:10.207 404c compacted to: files[ 1 0 8 0 0 0 0 ]
+2026/02/04-19:08:10.208 404c Delete type=2 #573
+2026/02/04-19:08:10.208 404c Delete type=2 #574
+2026/02/04-19:08:10.208 404c Delete type=2 #577
+2026/02/04-19:08:10.208 404c Delete type=2 #578
+2026/02/04-19:08:10.208 404c Delete type=2 #579
+2026/02/04-19:08:10.208 404c Delete type=2 #580
+2026/02/04-19:08:10.209 404c Delete type=2 #581
+2026/02/04-19:08:10.209 404c Delete type=2 #582
+2026/02/04-19:08:10.209 404c Delete type=2 #583
+2026/02/04-19:08:10.209 404c Delete type=2 #585
+2026/02/04-19:08:14.578 3f90 Moved #594 to level-1 1084763 bytes OK: files[ 0 1 8 0 0 0 0 ]
+2026/02/04-19:08:15.440 3f90 Compacting 1@1 + 6@2 files
+2026/02/04-19:08:16.029 3f90 Generated table #596@1: 49192 keys, 2243658 bytes
+2026/02/04-19:08:16.578 3f90 Generated table #597@1: 47838 keys, 2210729 bytes
+2026/02/04-19:08:16.686 3f90 Generated table #598@1: 2363 keys, 2158801 bytes
+2026/02/04-19:08:16.803 3f90 Generated table #599@1: 8031 keys, 2170056 bytes
+2026/02/04-19:08:17.154 3f90 Generated table #600@1: 30169 keys, 2240162 bytes
+2026/02/04-19:08:17.354 3f90 Generated table #601@1: 15260 keys, 2070009 bytes
+2026/02/04-19:08:17.354 3f90 Compacted 1@1 + 6@2 files => 13093415 bytes
+2026/02/04-19:08:17.355 3f90 compacted to: files[ 0 0 8 0 0 0 0 ]
+2026/02/04-19:08:17.356 3f90 Delete type=2 #586
+2026/02/04-19:08:17.356 3f90 Delete type=2 #587
+2026/02/04-19:08:17.356 3f90 Delete type=2 #588
+2026/02/04-19:08:17.356 3f90 Delete type=2 #589
+2026/02/04-19:08:17.356 3f90 Delete type=2 #590
+2026/02/04-19:08:17.356 3f90 Delete type=2 #591
+2026/02/04-19:08:17.356 3f90 Delete type=2 #594
+2026/02/04-19:08:45.339 5e00 Level-0 table #603: started
+2026/02/04-19:08:45.414 5e00 Level-0 table #603: 1000010 bytes OK
+2026/02/04-19:08:45.416 5e00 Delete type=0 #593
+2026/02/04-19:08:45.423 5e00 Compacting 1@1 + 8@2 files
+2026/02/04-19:08:45.768 5e00 Generated table #604@1: 51559 keys, 2231097 bytes
+2026/02/04-19:08:46.130 5e00 Generated table #605@1: 46829 keys, 2220598 bytes
+2026/02/04-19:08:46.284 5e00 Generated table #606@1: 6113 keys, 2160357 bytes
+2026/02/04-19:08:46.421 5e00 Generated table #607@1: 3893 keys, 2157637 bytes
+2026/02/04-19:08:46.762 5e00 Generated table #608@1: 29775 keys, 2249560 bytes
+2026/02/04-19:08:46.998 5e00 Generated table #609@1: 20210 keys, 2180494 bytes
+2026/02/04-19:08:47.455 5e00 Generated table #610@1: 85837 keys, 2232276 bytes
+2026/02/04-19:08:48.102 5e00 Generated table #611@1: 99190 keys, 2174388 bytes
+2026/02/04-19:08:48.102 5e00 Compacted 1@1 + 8@2 files => 17606407 bytes
+2026/02/04-19:08:48.103 5e00 compacted to: files[ 0 0 8 0 0 0 0 ]
+2026/02/04-19:09:18.249 3f90 Level-0 table #613: started
+2026/02/04-19:09:18.361 3f90 Level-0 table #613: 1074356 bytes OK
+2026/02/04-19:09:18.364 3f90 Delete type=2 #592
+2026/02/04-19:09:18.364 3f90 Delete type=2 #595
+2026/02/04-19:09:18.364 3f90 Delete type=2 #596
+2026/02/04-19:09:18.364 3f90 Delete type=2 #597
+2026/02/04-19:09:18.364 3f90 Delete type=2 #598
+2026/02/04-19:09:18.364 3f90 Delete type=2 #599
+2026/02/04-19:09:18.364 3f90 Delete type=2 #600
+2026/02/04-19:09:18.364 3f90 Delete type=2 #601
+2026/02/04-19:09:18.364 3f90 Delete type=0 #602
+2026/02/04-19:09:18.365 3f90 Delete type=2 #603
+2026/02/04-19:09:18.477 3f90 Compacting 1@1 + 8@2 files
+2026/02/04-19:09:18.919 3f90 Generated table #614@1: 48981 keys, 2244528 bytes
+2026/02/04-19:09:19.403 3f90 Generated table #615@1: 48208 keys, 2213202 bytes
+2026/02/04-19:09:19.530 3f90 Generated table #616@1: 2358 keys, 2157306 bytes
+2026/02/04-19:09:19.688 3f90 Generated table #617@1: 8035 keys, 2169149 bytes
+2026/02/04-19:09:20.033 3f90 Generated table #618@1: 29443 keys, 2240370 bytes
+2026/02/04-19:09:20.250 3f90 Generated table #619@1: 16682 keys, 2170142 bytes
+2026/02/04-19:09:20.774 3f90 Generated table #620@1: 98645 keys, 2248154 bytes
+2026/02/04-19:09:21.219 3f90 Generated table #621@1: 85991 keys, 1886536 bytes
+2026/02/04-19:09:21.219 3f90 Compacted 1@1 + 8@2 files => 17329387 bytes
+2026/02/04-19:09:21.220 3f90 compacted to: files[ 0 0 8 0 0 0 0 ]
+2026/02/04-19:09:21.893 3f90 Level-0 table #623: started
+2026/02/04-19:09:21.971 3f90 Level-0 table #623: 1042463 bytes OK
+2026/02/04-19:09:21.974 3f90 Delete type=2 #604
+2026/02/04-19:09:21.974 3f90 Delete type=2 #605
+2026/02/04-19:09:21.974 3f90 Delete type=2 #606
+2026/02/04-19:09:21.974 3f90 Delete type=2 #607
+2026/02/04-19:09:21.974 3f90 Delete type=2 #608
+2026/02/04-19:09:21.974 3f90 Delete type=2 #609
+2026/02/04-19:09:21.974 3f90 Delete type=2 #610
+2026/02/04-19:09:21.974 3f90 Delete type=2 #611
+2026/02/04-19:09:21.975 3f90 Delete type=0 #612
+2026/02/04-19:09:21.975 3f90 Delete type=2 #613
+2026/02/04-19:09:21.996 3f90 Compacting 1@1 + 6@2 files
+2026/02/04-19:09:22.315 3f90 Generated table #624@1: 52922 keys, 2223726 bytes
+2026/02/04-19:09:22.743 3f90 Generated table #625@1: 45082 keys, 2226132 bytes
+2026/02/04-19:09:22.910 3f90 Generated table #626@1: 9738 keys, 2164067 bytes
+2026/02/04-19:09:23.022 3f90 Generated table #627@1: 2571 keys, 2156382 bytes
+2026/02/04-19:09:23.368 3f90 Generated table #628@1: 27429 keys, 2246606 bytes
+2026/02/04-19:09:23.616 3f90 Generated table #629@1: 23968 keys, 2188606 bytes
+2026/02/04-19:09:23.647 3f90 Generated table #630@1: 992 keys, 492487 bytes
+2026/02/04-19:09:23.647 3f90 Compacted 1@1 + 6@2 files => 13698006 bytes
+2026/02/04-19:09:23.648 3f90 compacted to: files[ 0 0 9 0 0 0 0 ]
+2026/02/04-19:09:23.649 3f90 Delete type=2 #614
+2026/02/04-19:09:23.650 3f90 Delete type=2 #615
+2026/02/04-19:09:23.650 3f90 Delete type=2 #616
+2026/02/04-19:09:23.650 3f90 Delete type=2 #617
+2026/02/04-19:09:23.650 3f90 Delete type=2 #618
+2026/02/04-19:09:23.650 3f90 Delete type=2 #619
+2026/02/04-19:09:23.650 3f90 Delete type=2 #623
+2026/02/04-19:09:51.822 3f90 Level-0 table #632: started
+2026/02/04-19:09:51.913 3f90 Level-0 table #632: 1048660 bytes OK
+2026/02/04-19:09:51.915 3f90 Delete type=0 #622
+2026/02/04-19:09:51.942 3f90 Compacting 1@1 + 6@2 files
+2026/02/04-19:09:52.377 3f90 Generated table #633@1: 51177 keys, 2239795 bytes
+2026/02/04-19:09:52.886 3f90 Generated table #634@1: 48634 keys, 2218277 bytes
+2026/02/04-19:09:53.007 3f90 Generated table #635@1: 3660 keys, 2158334 bytes
+2026/02/04-19:09:53.147 3f90 Generated table #636@1: 5847 keys, 2159469 bytes
+2026/02/04-19:09:53.466 3f90 Generated table #637@1: 28707 keys, 2247020 bytes
+2026/02/04-19:09:53.586 3f90 Level-0 table #640: started
+2026/02/04-19:09:53.662 3f90 Level-0 table #640: 1012421 bytes OK
+2026/02/04-19:09:53.666 3f90 Delete type=0 #631
+2026/02/04-19:09:53.721 3f90 Generated table #638@1: 19191 keys, 1881333 bytes
+2026/02/04-19:09:53.721 3f90 Compacted 1@1 + 6@2 files => 12904228 bytes
+2026/02/04-19:09:53.722 3f90 compacted to: files[ 1 0 9 0 0 0 0 ]
+2026/02/04-19:09:53.723 3f90 Delete type=2 #624
+2026/02/04-19:09:53.723 3f90 Delete type=2 #625
+2026/02/04-19:09:53.723 3f90 Delete type=2 #626
+2026/02/04-19:09:53.723 3f90 Delete type=2 #627
+2026/02/04-19:09:53.723 3f90 Delete type=2 #628
+2026/02/04-19:09:53.723 3f90 Delete type=2 #629
+2026/02/04-19:09:53.724 3f90 Delete type=2 #632
+2026/02/04-19:09:53.764 3f90 Moved #640 to level-1 1012421 bytes OK: files[ 0 1 9 0 0 0 0 ]
+2026/02/04-19:10:45.276 3f90 Compacting 1@1 + 5@2 files
+2026/02/04-19:10:45.769 3f90 Generated table #641@1: 50008 keys, 2244073 bytes
+2026/02/04-19:10:46.177 3f90 Generated table #642@1: 49278 keys, 2213843 bytes
+2026/02/04-19:10:46.281 3f90 Generated table #643@1: 2326 keys, 2156457 bytes
+2026/02/04-19:10:46.396 3f90 Generated table #644@1: 7367 keys, 2165281 bytes
+2026/02/04-19:10:46.715 3f90 Generated table #645@1: 27038 keys, 2129092 bytes
+2026/02/04-19:10:46.715 3f90 Compacted 1@1 + 5@2 files => 10908746 bytes
+2026/02/04-19:10:46.717 3f90 compacted to: files[ 0 0 9 0 0 0 0 ]
+2026/02/04-19:10:46.718 3f90 Delete type=2 #633
+2026/02/04-19:10:46.718 3f90 Delete type=2 #634
+2026/02/04-19:10:46.718 3f90 Delete type=2 #635
+2026/02/04-19:10:46.718 3f90 Delete type=2 #636
+2026/02/04-19:10:46.718 3f90 Delete type=2 #637
+2026/02/04-19:10:46.718 3f90 Delete type=2 #640

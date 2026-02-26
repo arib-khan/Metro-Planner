@@ -7,31 +7,157 @@ import { useAuth } from '../utils/authHelpers';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
 
+// ── New JSON format transformer (CSV row → Firestore document) ────────────────
+const transformCSVRowToNewFormat = (rowData, user, fileName) => {
+  const currentDate = new Date().toISOString().split('T')[0];
+  const trainId =
+    rowData.train_id ||
+    rowData.trainid ||
+    `KMRL-${Math.floor(Math.random() * 30) + 1}`;
+
+  const brandingType = rowData.branding_type || rowData.branding || 'None';
+  const isBranded = brandingType && brandingType !== 'None';
+
+  // Fitness — derive from certificate columns
+  const rsValid = (rowData.rolling_stock_certificate || rowData.rolling_stock || '').toLowerCase() === 'valid';
+  const sigValid = (rowData.signalling_certificate || rowData.signalling || '').toLowerCase() === 'valid';
+  const telValid = (rowData.telecom_certificate || rowData.telecom || '').toLowerCase() === 'valid';
+  const expiryDate = rowData.certificate_expiry || rowData.expiry || currentDate;
+
+  return {
+    date: currentDate,
+
+    branding_priorities: isBranded ? [{
+      train_id: trainId,
+      exposure_minutes: parseInt(rowData.remaining_exposure_hours) * 60 ||
+        parseInt(rowData.exposure_minutes) || 0,
+      priority_level:
+        parseInt(rowData.priority_level || rowData.priority) ||
+        (brandingType === 'Government Campaign' || brandingType === 'Election Awareness' ? 1 : 2),
+      branding_type: brandingType,
+      valid_from: rowData.valid_from || rowData.branding_valid_from || currentDate,
+      valid_to: rowData.valid_to || rowData.branding_valid_to || currentDate,
+      approved_by: rowData.approved_by || 'Marketing Dept',
+    }] : [],
+
+    cleaning_slots:
+      (rowData.cleaning_type || rowData.cleaning) &&
+        (rowData.cleaning_type || rowData.cleaning) !== 'None'
+        ? [{
+          train_id: trainId,
+          cleaning_type: rowData.cleaning_type || rowData.cleaning,
+          slot_start: `${currentDate}T${rowData.cleaning_time || '23:00'}`,
+          slot_end: `${currentDate}T${rowData.cleaning_end_time || '23:45'}`,
+          assigned_team: rowData.assigned_team || rowData.team || 'Cleaning Team',
+          status: 'Scheduled',
+        }]
+        : [],
+
+    stabling_geometry: [{
+      train_id: trainId,
+      yard: (rowData.depot || rowData.yard)
+        ? `${rowData.depot || rowData.yard} Depot`
+        : 'Muttom Depot',
+      track_no: parseInt(rowData.track_no || rowData.track) || 1,
+      berth: rowData.berth || 'A1',
+      orientation: rowData.orientation || 'UP',
+      distance_from_buffer_m: parseFloat(rowData.distance_from_buffer_m) || 4.5,
+      remarks: rowData.stabling_remarks || rowData.remarks || 'Normal parking',
+    }],
+
+    fitness_certificates: [{
+      train_id: trainId,
+      // Store the actual expiry dates — dashboard shows these for any date within validity
+      rolling_stock_validity: rsValid ? expiryDate : '',
+      signalling_validity: sigValid ? expiryDate : '',
+      telecom_validity: telValid ? expiryDate : '',
+      status: rsValid && sigValid && telValid ? 'Fit for Service' : 'Requires Check',
+    }],
+
+    job_card_status:
+      rowData.job_description || rowData.description
+        ? [{
+          train_id: trainId,
+          job_id:
+            rowData.job_card_number ||
+            rowData.job_id ||
+            `JC-${Math.floor(Math.random() * 9000) + 1000}`,
+          task: rowData.job_description || rowData.description,
+          status: rowData.work_order_status || rowData.status || 'Open',
+          assigned_team: rowData.assigned_team || rowData.team || 'Maintenance Team',
+          due_date: currentDate,
+          priority: rowData.priority || 'Medium',
+        }]
+        : [],
+
+    // New mileage format — only current_mileage_km
+    mileage: [{
+      train_id: trainId,
+      current_mileage_km: parseInt(rowData.current_mileage || rowData.mileage || rowData.mileage_km) || 0,
+    }],
+
+    // Metadata
+    userId: user.uid,
+    userName: user.displayName,
+    userEmail: user.email,
+    timestamp: serverTimestamp(),
+    status: 'submitted',
+    syncStatus: 'synced',
+    source: 'bulk_upload',
+    original_file: fileName,
+  };
+};
+
+// ── CSV line parser (handles quoted fields with commas) ───────────────────────
+const parseCSVLine = (line) => {
+  const values = [];
+  let current = '';
+  let inQuotes = false;
+  for (const char of line) {
+    if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (char === ',' && !inQuotes) {
+      values.push(current.trim());
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  values.push(current.trim());
+  return values;
+};
+
+// ── CSV template generator ────────────────────────────────────────────────────
+export const generateCSVTemplate = () => {
+  const headers = [
+    'train_id', 'rolling_stock_certificate', 'signalling_certificate', 'telecom_certificate',
+    'certificate_expiry', 'current_mileage', 'branding_type', 'exposure_minutes', 'priority_level',
+    'valid_from', 'valid_to', 'cleaning_type', 'assigned_team', 'depot', 'track_no', 'berth',
+    'job_description', 'work_order_status', 'priority',
+  ];
+  const sample = [
+    'KMRL-1', 'Valid', 'Valid', 'Valid', '2025-12-31', '288650',
+    'Election Awareness', '3600', '1', '2025-11-01', '2025-11-30',
+    'Daily Clean', 'Team A', 'Muttom', '7', 'B2',
+    'Brake Inspection', 'Open', 'High',
+  ];
+  return headers.join(',') + '\n' + sample.join(',');
+};
+
+// ── Component ─────────────────────────────────────────────────────────────────
 const FileUploadModal = ({ visible, onDismiss, onSuccess }) => {
   const { user } = useAuth();
   const [fileType, setFileType] = useState('csv');
   const [uploading, setUploading] = useState(false);
   const [fileName, setFileName] = useState('');
+  const [progress, setProgress] = useState('');
 
   const pickFile = async () => {
     try {
-      console.log('Starting file picker...');
-      
-      let mimeTypes = [];
-      if (fileType === 'csv') {
-        mimeTypes = [
-          'text/csv',
-          'text/comma-separated-values',
-          'application/csv',
-          'application/vnd.ms-excel'
-        ];
-      } else {
-        mimeTypes = [
-          'text/xml',
-          'application/xml',
-          'application/xhtml+xml'
-        ];
-      }
+      const mimeTypes =
+        fileType === 'csv'
+          ? ['text/csv', 'text/comma-separated-values', 'application/csv', 'application/vnd.ms-excel']
+          : ['text/xml', 'application/xml'];
 
       const result = await DocumentPicker.getDocumentAsync({
         type: mimeTypes,
@@ -39,280 +165,114 @@ const FileUploadModal = ({ visible, onDismiss, onSuccess }) => {
         multiple: false,
       });
 
-      console.log('File picker result:', result);
-
-      if (result.canceled) {
-        console.log('User canceled file picker');
-        Alert.alert('Info', 'File selection was canceled');
-        return;
-      }
+      if (result.canceled) return;
 
       if (result.assets && result.assets.length > 0) {
         const file = result.assets[0];
-        console.log('Selected file:', file);
-        
-        Alert.alert(
-          'Confirm File',
-          `Do you want to process "${file.name}"?`,
-          [
-            {
-              text: 'Cancel',
-              style: 'cancel'
+        Alert.alert('Confirm File', `Process "${file.name}"?`, [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Process',
+            onPress: () => {
+              setFileName(file.name);
+              processFile(file.uri, file.name);
             },
-            {
-              text: 'Process',
-              onPress: () => {
-                setFileName(file.name);
-                processFile(file.uri, file.name);
-              }
-            }
-          ]
-        );
-      } else {
-        Alert.alert('Error', 'No file was selected. Please try again.');
+          },
+        ]);
       }
     } catch (error) {
-      console.error('File picker error:', error);
-      Alert.alert(
-        'File Selection Error', 
-        'Please make sure you have a file manager app installed and try again.'
-      );
+      Alert.alert('File Selection Error', error.message);
     }
   };
 
   const processFile = async (fileUri, name) => {
     setUploading(true);
+    setProgress('Reading file...');
     try {
-      console.log('Processing file from URI:', fileUri);
-      
       const response = await fetch(fileUri);
-      
-      if (!response.ok) {
-        throw new Error('Selected file cannot be accessed. Please try another file.');
-      }
+      if (!response.ok) throw new Error('Cannot access selected file.');
+      const content = await response.text();
+      if (!content.trim()) throw new Error('File is empty.');
 
-      const fileContent = await response.text();
-      console.log('File content length:', fileContent.length);
-      
-      if (fileContent.length === 0) {
-        throw new Error('The selected file appears to be empty.');
-      }
-
-      let result;
+      let count = 0;
       if (fileType === 'csv') {
-        result = await processCSV(fileContent, name);
+        count = await processCSV(content, name);
       } else {
-        result = await processXML(fileContent, name);
+        count = await processXML(content, name);
       }
-      
-      Alert.alert(
-        'Success', 
-        `Successfully uploaded ${result.count} record(s) to database!`
-      );
+
+      Alert.alert('Success', `Uploaded ${count} record(s) to database!`);
       onSuccess();
       onDismiss();
     } catch (error) {
-      console.error('File processing error:', error);
-      Alert.alert(
-        'Processing Error', 
-        error.message || 'Failed to process the file. Please check the file format and try again.'
-      );
+      Alert.alert('Processing Error', error.message || 'Failed to process file.');
     } finally {
       setUploading(false);
+      setProgress('');
       setFileName('');
     }
   };
 
   const processCSV = async (csvContent, fileName) => {
-    try {
-      const normalizedContent = csvContent.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-      const lines = normalizedContent.split('\n').filter(line => line.trim() !== '');
-      
-      if (lines.length < 2) {
-        throw new Error('CSV file must contain at least a header row and one data row');
-      }
+    const lines = csvContent
+      .replace(/\r\n/g, '\n')
+      .replace(/\r/g, '\n')
+      .split('\n')
+      .filter(l => l.trim() !== '');
 
-      const headers = lines[0].split(',').map(header => header.trim().toLowerCase());
-      console.log('CSV Headers:', headers);
+    if (lines.length < 2) throw new Error('CSV must have a header row and at least one data row.');
 
-      // Group data by date (we'll use current date for all records)
-      const currentDate = new Date().toISOString().split('T')[0];
-      const groupedData = {
-        date: currentDate,
-        branding_priorities: [],
-        cleaning_slots: [],
-        stabling_geometry: [],
-        fitness_certificates: [],
-        job_card_status: [],
-        mileage: []
-      };
+    const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+    let count = 0;
 
-      let processedCount = 0;
+    for (let i = 1; i < lines.length; i++) {
+      if (!lines[i].trim()) continue;
+      setProgress(`Processing row ${i} of ${lines.length - 1}...`);
 
-      for (let i = 1; i < lines.length; i++) {
-        if (lines[i].trim() === '') continue;
-        
-        try {
-          const values = parseCSVLine(lines[i]);
-          const rowData = {};
-          
-          headers.forEach((header, index) => {
-            rowData[header] = values[index] || '';
-          });
+      const values = parseCSVLine(lines[i]);
+      const rowData = {};
+      headers.forEach((h, idx) => (rowData[h] = values[idx] || ''));
 
-          console.log(`Processing row ${i}:`, rowData);
-
-          // Add to branding_priorities if data exists
-          if (rowData.train_id && rowData.branding_type && rowData.branding_type !== 'None') {
-            groupedData.branding_priorities.push({
-              train_id: rowData.train_id,
-              priority_level: parseInt(rowData.branding_priority_level) || 3,
-              branding_type: rowData.branding_type,
-              valid_from: rowData.branding_valid_from || currentDate,
-              valid_to: rowData.branding_valid_to || currentDate,
-              approved_by: rowData.branding_approved_by || "Marketing Dept",
-              remarks: rowData.branding_remarks || ""
-            });
-          }
-
-          // Add to cleaning_slots if data exists
-          if (rowData.train_id && rowData.cleaning_type) {
-            const slotStart = rowData.cleaning_slot_start 
-              ? `${currentDate}T${rowData.cleaning_slot_start}` 
-              : `${currentDate}T00:00`;
-            const slotEnd = rowData.cleaning_slot_end 
-              ? `${currentDate}T${rowData.cleaning_slot_end}` 
-              : `${currentDate}T00:00`;
-
-            groupedData.cleaning_slots.push({
-              train_id: rowData.train_id,
-              cleaning_type: rowData.cleaning_type,
-              slot_start: slotStart,
-              slot_end: slotEnd,
-              assigned_team: rowData.cleaning_assigned_team || "Team A",
-              status: rowData.cleaning_status || "Scheduled"
-            });
-          }
-
-          // Add to stabling_geometry if data exists
-          if (rowData.train_id && rowData.yard) {
-            groupedData.stabling_geometry.push({
-              train_id: rowData.train_id,
-              yard: rowData.yard,
-              track_no: parseInt(rowData.track_no) || 1,
-              berth: rowData.berth || 'A1',
-              orientation: rowData.orientation || "UP",
-              distance_from_buffer_m: parseFloat(rowData.distance_from_buffer_m) || 4.5,
-              remarks: rowData.stabling_remarks || ""
-            });
-          }
-
-          // Add to fitness_certificates if data exists
-          if (rowData.train_id && rowData.rolling_stock_validity) {
-            groupedData.fitness_certificates.push({
-              train_id: rowData.train_id,
-              rolling_stock_validity: rowData.rolling_stock_validity || "",
-              signalling_validity: rowData.signalling_validity || "",
-              telecom_validity: rowData.telecom_validity || "",
-              status: rowData.fitness_status || "Requires Check"
-            });
-          }
-
-          // Add to job_card_status if data exists
-          if (rowData.train_id && rowData.job_id) {
-            const jobCard = {
-              train_id: rowData.train_id,
-              job_id: rowData.job_id,
-              task: rowData.job_task || "",
-              status: rowData.job_status || "Open",
-              assigned_team: rowData.job_assigned_team || "Maintenance Team",
-              due_date: rowData.job_due_date || currentDate
-            };
-
-            if (rowData.job_completed_on) {
-              jobCard.completed_on = rowData.job_completed_on;
-            }
-
-            if (rowData.job_priority) {
-              jobCard.priority = rowData.job_priority;
-            }
-
-            groupedData.job_card_status.push(jobCard);
-          }
-
-          // Add to mileage if data exists
-          if (rowData.train_id && rowData.current_mileage_km) {
-            const prevMileage = parseInt(rowData.previous_mileage_km) || 0;
-            const currMileage = parseInt(rowData.current_mileage_km) || 0;
-
-            groupedData.mileage.push({
-              train_id: rowData.train_id,
-              previous_mileage_km: prevMileage,
-              current_mileage_km: currMileage,
-              delta_km: currMileage - prevMileage,
-              remarks: rowData.mileage_remarks || ""
-            });
-          }
-          
-          processedCount++;
-        } catch (rowError) {
-          console.error(`Error processing row ${i}:`, rowError);
-        }
-      }
-
-      // Add metadata
-      groupedData.userId = user.uid;
-      groupedData.userName = user.displayName;
-      groupedData.userEmail = user.email;
-      groupedData.timestamp = serverTimestamp();
-      groupedData.status = 'submitted';
-      groupedData.syncStatus = 'synced';
-      groupedData.source = 'bulk_upload';
-      groupedData.original_file = fileName;
-
-      console.log('Final grouped data:', JSON.stringify(groupedData, null, 2));
-      
-      // Save to Firestore
-      const docRef = await addDoc(collection(db, 'trainInduction'), groupedData);
-      console.log('✅ Saved to Firestore with ID:', docRef.id);
-
-      return { count: processedCount };
-    } catch (error) {
-      console.error('CSV processing error:', error);
-      throw error;
-    }
-  };
-
-  const parseCSVLine = (line) => {
-    const values = [];
-    let currentValue = '';
-    let inQuotes = false;
-    
-    for (let i = 0; i < line.length; i++) {
-      const char = line[i];
-      
-      if (char === '"') {
-        inQuotes = !inQuotes;
-      } else if (char === ',' && !inQuotes) {
-        values.push(currentValue.trim());
-        currentValue = '';
-      } else {
-        currentValue += char;
+      try {
+        const docData = transformCSVRowToNewFormat(rowData, user, fileName);
+        await addDoc(collection(db, 'trainInduction'), docData);
+        count++;
+      } catch (err) {
+        console.error(`Row ${i} error:`, err);
       }
     }
-    
-    values.push(currentValue.trim());
-    return values;
+
+    return count;
   };
 
   const processXML = async (xmlContent, fileName) => {
-    try {
-      // XML processing logic here (simplified for now)
-      throw new Error('XML processing not yet implemented');
-    } catch (error) {
-      console.error('XML processing error:', error);
-      throw new Error('Invalid XML format');
+    const trainMatches = xmlContent.match(/<train>[\s\S]*?<\/train>/gi) || [];
+    if (trainMatches.length === 0) throw new Error('No <train> elements found in XML.');
+
+    const fields = [
+      'train_id', 'current_mileage', 'branding_type', 'valid_from', 'valid_to',
+      'cleaning_type', 'depot', 'certificate_expiry',
+      'rolling_stock_certificate', 'signalling_certificate', 'telecom_certificate',
+    ];
+
+    let count = 0;
+    for (const block of trainMatches) {
+      const rowData = {};
+      fields.forEach(field => {
+        const m = block.match(new RegExp(`<${field}>([\\s\\S]*?)<\\/${field}>`, 'i'));
+        if (m) rowData[field] = m[1].trim();
+      });
+      if (!rowData.train_id) continue;
+
+      try {
+        const docData = transformCSVRowToNewFormat(rowData, user, fileName);
+        await addDoc(collection(db, 'trainInduction'), docData);
+        count++;
+      } catch (err) {
+        console.error('XML row error:', err);
+      }
     }
+    return count;
   };
 
   return (
@@ -324,19 +284,18 @@ const FileUploadModal = ({ visible, onDismiss, onSuccess }) => {
           backgroundColor: 'white',
           padding: 20,
           margin: 20,
-          borderRadius: 8
+          borderRadius: 12,
         }}
       >
-        <Text variant="titleLarge" style={{ marginBottom: 20, textAlign: 'center' }}>
+        <Text variant="titleLarge" style={{ marginBottom: 4, textAlign: 'center', fontWeight: 'bold' }}>
           📁 Bulk Upload
         </Text>
-
-        <Text variant="bodyMedium" style={{ marginBottom: 16, textAlign: 'center' }}>
-          Upload CSV or XML file with multiple train records
+        <Text variant="bodySmall" style={{ marginBottom: 20, textAlign: 'center', color: 'gray' }}>
+          Upload CSV or XML with multiple train records (new format)
         </Text>
 
         <RadioButton.Group onValueChange={setFileType} value={fileType}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
             <RadioButton value="csv" />
             <Text>CSV File (.csv)</Text>
           </View>
@@ -347,42 +306,34 @@ const FileUploadModal = ({ visible, onDismiss, onSuccess }) => {
         </RadioButton.Group>
 
         {fileName ? (
-          <Text variant="bodyMedium" style={{ marginBottom: 16, textAlign: 'center', color: 'green' }}>
-            ✅ Selected: {fileName}
+          <Text variant="bodyMedium" style={{ marginBottom: 12, textAlign: 'center', color: 'green' }}>
+            ✅ {fileName}
           </Text>
         ) : null}
 
         {uploading ? (
           <View style={{ alignItems: 'center', marginVertical: 20 }}>
-            <ActivityIndicator size="large" color="#2196F3" />
-            <Text style={{ marginTop: 10 }}>Processing and uploading to database...</Text>
+            <ActivityIndicator size="large" color="#1e293b" />
+            <Text style={{ marginTop: 10, color: '#666' }}>{progress || 'Uploading...'}</Text>
           </View>
         ) : (
-          <View>
+          <>
             <Button
               mode="contained"
               onPress={pickFile}
-              style={{ marginBottom: 10 }}
+              style={{ marginBottom: 10, backgroundColor: '#1e293b' }}
               icon="file-upload"
             >
-              {Platform.OS === 'ios' ? 'Choose File from Storage' : 'Select File from Storage'}
+              {Platform.OS === 'ios' ? 'Choose File' : 'Select File'}
             </Button>
-            
-            <Text variant="bodySmall" style={{ marginBottom: 16, textAlign: 'center', color: 'gray' }}>
-              {Platform.OS === 'ios' 
-                ? 'This will open your file browser. Select any .csv or .xml file.' 
-                : 'This will open your file manager. Navigate to and select your file.'
-              }
+            <Text variant="bodySmall" style={{ textAlign: 'center', color: 'gray', marginBottom: 10 }}>
+              CSV columns: train_id, current_mileage, branding_type, valid_from, valid_to,{'\n'}
+              exposure_minutes, certificate_expiry, rolling_stock_certificate, …
             </Text>
-          </View>
+          </>
         )}
 
-        <Button 
-          mode="outlined" 
-          onPress={onDismiss}
-          style={{ marginTop: 10 }}
-          disabled={uploading}
-        >
+        <Button mode="outlined" onPress={onDismiss} disabled={uploading}>
           {uploading ? 'Processing...' : 'Cancel'}
         </Button>
       </Modal>

@@ -4,7 +4,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Train, Mail, Lock, User, AlertCircle, CheckCircle } from 'lucide-react';
+import { Train, Mail, Lock, User, AlertCircle, CheckCircle, Fingerprint } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export default function SignupPage() {
@@ -17,7 +17,10 @@ export default function SignupPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { signup } = useAuth();
+  const [showBiometricSetup, setShowBiometricSetup] = useState(false);
+  const [biometricSetupLoading, setBiometricSetupLoading] = useState(false);
+  const [biometricSetupComplete, setBiometricSetupComplete] = useState(false);
+  const { signup, biometricAvailable, registerBiometric } = useAuth();
   const router = useRouter();
 
   const handleChange = (e) => {
@@ -48,9 +51,15 @@ export default function SignupPage() {
       await signup(formData.email, formData.password);
       setSuccess(true);
       
-      setTimeout(() => {
-        router.push('/login');
-      }, 3000);
+      // Show biometric setup option if available
+      if (biometricAvailable) {
+        setShowBiometricSetup(true);
+      } else {
+        // Redirect to login after 3 seconds if biometric not available
+        setTimeout(() => {
+          router.push('/login');
+        }, 3000);
+      }
     } catch (error) {
       let errorMessage = 'Failed to create account. Please try again.';
       
@@ -67,7 +76,48 @@ export default function SignupPage() {
     }
   };
 
-  if (success) {
+  const handleBiometricSetup = async () => {
+    setBiometricSetupLoading(true);
+    setError('');
+
+    try {
+      await registerBiometric(formData.email);
+      
+      // Store password securely (in production, use secure token-based auth)
+      localStorage.setItem(`pwd_${formData.email}`, formData.password);
+      
+      setBiometricSetupComplete(true);
+      
+      // Redirect after showing success message
+      setTimeout(() => {
+        router.push('/login');
+      }, 2000);
+    } catch (error) {
+      console.error('Biometric setup error:', error);
+      
+      let errorMessage = 'Failed to set up fingerprint authentication. You can enable it later from settings.';
+      
+      if (error.name === 'NotAllowedError') {
+        errorMessage = 'Fingerprint setup was cancelled. You can enable it later from settings.';
+      } else if (error.message.includes('not available')) {
+        errorMessage = 'Biometric authentication is not available on this device.';
+      }
+      
+      setError(errorMessage);
+      setBiometricSetupLoading(false);
+      
+      // Still redirect to login after error
+      setTimeout(() => {
+        router.push('/login');
+      }, 3000);
+    }
+  };
+
+  const skipBiometricSetup = () => {
+    router.push('/login');
+  };
+
+  if (success && !showBiometricSetup) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center px-4">
         <div className="max-w-md w-full bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
@@ -89,6 +139,91 @@ export default function SignupPage() {
               Go to Login
             </button>
           </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (success && showBiometricSetup) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center px-4">
+        <div className="max-w-md w-full bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+          <div className="text-center mb-6">
+            <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
+              {biometricSetupComplete ? (
+                <CheckCircle className="h-10 w-10 text-green-600" />
+              ) : (
+                <Fingerprint className="h-10 w-10 text-blue-600" />
+              )}
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">
+              {biometricSetupComplete ? 'Fingerprint Enabled!' : 'Enable Fingerprint Login?'}
+            </h2>
+            <p className="text-gray-600">
+              {biometricSetupComplete 
+                ? 'You can now use your fingerprint to log in quickly and securely.'
+                : 'Speed up your login process by enabling fingerprint authentication.'
+              }
+            </p>
+          </div>
+
+          {error && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start">
+              <AlertCircle className="h-5 w-5 text-red-600 mr-3 flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-red-600">{error}</p>
+            </div>
+          )}
+
+          {!biometricSetupComplete && (
+            <div className="space-y-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <ul className="text-sm text-gray-700 space-y-2">
+                  <li className="flex items-start">
+                    <CheckCircle className="h-4 w-4 text-blue-600 mr-2 flex-shrink-0 mt-0.5" />
+                    <span>Quick and secure login</span>
+                  </li>
+                  <li className="flex items-start">
+                    <CheckCircle className="h-4 w-4 text-blue-600 mr-2 flex-shrink-0 mt-0.5" />
+                    <span>No need to remember passwords</span>
+                  </li>
+                  <li className="flex items-start">
+                    <CheckCircle className="h-4 w-4 text-blue-600 mr-2 flex-shrink-0 mt-0.5" />
+                    <span>Enhanced security</span>
+                  </li>
+                </ul>
+              </div>
+
+              <button
+                onClick={handleBiometricSetup}
+                disabled={biometricSetupLoading}
+                className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+              >
+                <Fingerprint className="h-5 w-5" />
+                {biometricSetupLoading ? 'Setting up...' : 'Enable Fingerprint'}
+              </button>
+
+              <button
+                onClick={skipBiometricSetup}
+                disabled={biometricSetupLoading}
+                className="w-full bg-gray-100 text-gray-700 py-3 rounded-lg hover:bg-gray-200 font-medium transition-colors"
+              >
+                Skip for now
+              </button>
+            </div>
+          )}
+
+          {biometricSetupComplete && (
+            <div className="text-center">
+              <p className="text-sm text-gray-500 mb-4">
+                Redirecting to login page...
+              </p>
+              <Link href="/login">
+                <button className="px-6 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 font-medium">
+                  Go to Login
+                </button>
+              </Link>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -118,6 +253,15 @@ export default function SignupPage() {
             <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start">
               <AlertCircle className="h-5 w-5 text-red-600 mr-3 flex-shrink-0 mt-0.5" />
               <p className="text-sm text-red-600">{error}</p>
+            </div>
+          )}
+
+          {biometricAvailable && (
+            <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg flex items-start">
+              <Fingerprint className="h-5 w-5 text-blue-600 mr-3 flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-blue-700">
+                Fingerprint authentication available! You'll be able to enable it after signing up.
+              </p>
             </div>
           )}
 

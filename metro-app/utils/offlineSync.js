@@ -1,76 +1,78 @@
 //utils\offlineSync.js
+/**
+ * Offline sync utility for KMRL Train Induction App.
+ *
+ * New JSON format notes:
+ *  - mileage entries: { train_id, current_mileage_km }  (no previous/delta fields)
+ *  - branding_priorities: include exposure_minutes, valid_from, valid_to (date-ranged)
+ *  - fitness_certificates: store actual validity dates (rolling_stock_validity,
+ *    signalling_validity, telecom_validity) so the dashboard can display them
+ *    for any viewing date within the validity window.
+ */
+
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { db } from '../firebaseConfig';
-import { 
-  collection, 
-  addDoc, 
+import {
+  collection,
+  addDoc,
   serverTimestamp,
-  updateDoc,
-  doc 
 } from 'firebase/firestore';
 import NetInfo from '@react-native-community/netinfo';
 
 const PENDING_SUBMISSIONS_KEY = 'pendingSubmissions';
 
-// Check network connectivity
+// ── Network check ─────────────────────────────────────────────────────────────
 export const isOnline = async () => {
   const netInfo = await NetInfo.fetch();
   return netInfo.isConnected;
 };
 
-// Save data locally when offline
+// ── Save locally when offline ─────────────────────────────────────────────────
 export const saveToLocalStorage = async (data) => {
   try {
-    const existingData = await AsyncStorage.getItem(PENDING_SUBMISSIONS_KEY);
-    const pendingSubmissions = existingData ? JSON.parse(existingData) : [];
-    
-    const submissionWithId = {
+    const raw = await AsyncStorage.getItem(PENDING_SUBMISSIONS_KEY);
+    const pending = raw ? JSON.parse(raw) : [];
+
+    const entry = {
       ...data,
       localId: Date.now().toString(),
-      timestamp: new Date().toISOString(),
+      localTimestamp: new Date().toISOString(),
     };
-    
-    pendingSubmissions.push(submissionWithId);
-    await AsyncStorage.setItem(PENDING_SUBMISSIONS_KEY, JSON.stringify(pendingSubmissions));
-    
-    return { success: true, localId: submissionWithId.localId, isOffline: true };
+
+    pending.push(entry);
+    await AsyncStorage.setItem(PENDING_SUBMISSIONS_KEY, JSON.stringify(pending));
+    return { success: true, localId: entry.localId, isOffline: true };
   } catch (error) {
-    console.error('Error saving to local storage:', error);
+    console.error('saveToLocalStorage error:', error);
     return { success: false, error: error.message };
   }
 };
 
-// Save data to Firestore when online
+// ── Save to Firestore ─────────────────────────────────────────────────────────
 export const saveToFirestore = async (data) => {
   try {
     const submissionData = {
       ...data,
-      // Ensure these fields are properly set
-      userId: data.userId,
-      userName: data.userName,
-      userEmail: data.userEmail,
       timestamp: serverTimestamp(),
-      status: 'submitted',
+      status: data.status || 'submitted',
       syncStatus: 'synced',
     };
 
+    // Remove local-only fields if present
+    delete submissionData.localId;
+    delete submissionData.localTimestamp;
+
     const docRef = await addDoc(collection(db, 'trainInduction'), submissionData);
-    
-    return { 
-      success: true, 
-      documentId: docRef.id, 
-      isOffline: false 
-    };
+    return { success: true, documentId: docRef.id, isOffline: false };
   } catch (error) {
-    console.error('Error saving to Firestore:', error);
+    console.error('saveToFirestore error:', error);
     return { success: false, error: error.message };
   }
 };
 
-// Main function to save induction data
+// ── Main entry point ──────────────────────────────────────────────────────────
 export const saveInductionData = async (data) => {
   const online = await isOnline();
-  
   if (online) {
     return await saveToFirestore(data);
   } else {
@@ -78,58 +80,46 @@ export const saveInductionData = async (data) => {
   }
 };
 
-// Sync pending submissions when coming online
+// ── Sync pending submissions when back online ─────────────────────────────────
 export const syncPendingSubmissions = async () => {
   try {
-    const online = await isOnline();
-    if (!online) return;
+    if (!(await isOnline())) return;
 
-    const existingData = await AsyncStorage.getItem(PENDING_SUBMISSIONS_KEY);
-    const pendingSubmissions = existingData ? JSON.parse(existingData) : [];
-    
-    if (pendingSubmissions.length === 0) return;
+    const raw = await AsyncStorage.getItem(PENDING_SUBMISSIONS_KEY);
+    const pending = raw ? JSON.parse(raw) : [];
+    if (pending.length === 0) return;
 
-    const successfulSyncs = [];
-    const failedSyncs = [];
+    const synced = [];
+    const failed = [];
 
-    for (const submission of pendingSubmissions) {
+    for (const submission of pending) {
       const result = await saveToFirestore(submission);
-      
-      if (result.success) {
-        successfulSyncs.push(submission.localId);
-      } else {
-        failedSyncs.push(submission);
-      }
+      if (result.success) synced.push(submission.localId);
+      else failed.push(submission);
     }
 
-    // Remove successfully synced items
-    const updatedPending = pendingSubmissions.filter(
-      submission => !successfulSyncs.includes(submission.localId)
-    );
+    const remaining = pending.filter(s => !synced.includes(s.localId));
+    await AsyncStorage.setItem(PENDING_SUBMISSIONS_KEY, JSON.stringify(remaining));
 
-    await AsyncStorage.setItem(PENDING_SUBMISSIONS_KEY, JSON.stringify(updatedPending));
-    
-    console.log(`Synced ${successfulSyncs.length} pending submissions`);
-    return { successful: successfulSyncs.length, failed: failedSyncs.length };
+    console.log(`✅ Synced ${synced.length}, ❌ Failed ${failed.length}`);
+    return { successful: synced.length, failed: failed.length };
   } catch (error) {
-    console.error('Error syncing pending submissions:', error);
+    console.error('syncPendingSubmissions error:', error);
     return { successful: 0, failed: 0, error: error.message };
   }
 };
 
-// Get pending submissions count
+// ── Pending count ─────────────────────────────────────────────────────────────
 export const getPendingSubmissionsCount = async () => {
   try {
-    const existingData = await AsyncStorage.getItem(PENDING_SUBMISSIONS_KEY);
-    const pendingSubmissions = existingData ? JSON.parse(existingData) : [];
-    return pendingSubmissions.length;
-  } catch (error) {
-    console.error('Error getting pending count:', error);
+    const raw = await AsyncStorage.getItem(PENDING_SUBMISSIONS_KEY);
+    return raw ? JSON.parse(raw).length : 0;
+  } catch {
     return 0;
   }
 };
 
-// Initialize network listener
+// ── Network listener (auto-sync on reconnect) ─────────────────────────────────
 export const initNetworkListener = () => {
   return NetInfo.addEventListener(state => {
     if (state.isConnected) {

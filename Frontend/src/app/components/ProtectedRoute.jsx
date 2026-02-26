@@ -42,7 +42,7 @@ const ProtectedRoute = ({ children }) => {
             onClick={() => window.location.reload()}
             className="px-6 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800"
           >
-            I've Verified My Email
+            Ive Verified My Email
           </button>
         </div>
       </div>
