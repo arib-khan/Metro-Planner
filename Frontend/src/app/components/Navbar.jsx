@@ -16,7 +16,7 @@ const Navbar = () => {
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: Train },
     { name: 'Scheduling', href: '/scheduling', icon: Calendar },
-    { name: 'Simulation', href: '/simulation', icon: Users },
+    // { name: 'Simulation', href: '/simulation', icon: Users },
     { name: 'Updates', href: '/updates', icon: FileText },
     { name: 'inspection', href: '/inspection', icon: Wrench },
   ];
@@ -64,11 +64,10 @@ const Navbar = () => {
                 <Link
                   key={item.name}
                   href={item.href}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center transition-colors ${
-                    isActive(item.href)
+                  className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center transition-colors ${isActive(item.href)
                       ? 'bg-gray-900 text-white'
                       : 'text-gray-700 hover:bg-gray-100'
-                  }`}
+                    }`}
                 >
                   <Icon className="h-4 w-4 mr-2" />
                   {item.name}
@@ -92,7 +91,7 @@ const Navbar = () => {
               <button className="p-1 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors">
                 <Settings className="h-5 w-5" />
               </button>
-              <button 
+              <button
                 onClick={handleLogout}
                 className="p-1 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors"
                 title="Logout"
@@ -126,11 +125,10 @@ const Navbar = () => {
                     key={item.name}
                     href={item.href}
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className={`px-4 py-3 rounded-lg text-sm font-medium flex items-center transition-colors ${
-                      isActive(item.href)
+                    className={`px-4 py-3 rounded-lg text-sm font-medium flex items-center transition-colors ${isActive(item.href)
                         ? 'bg-gray-900 text-white'
                         : 'text-gray-700 hover:bg-gray-100'
-                    }`}
+                      }`}
                   >
                     <Icon className="h-4 w-4 mr-3" />
                     {item.name}
@@ -138,7 +136,7 @@ const Navbar = () => {
                 );
               })}
             </nav>
-            
+
             {/* Mobile User Menu */}
             <div className="px-4 py-3 border-t border-gray-200 mt-2">
               <div className="flex items-center justify-between mb-3">

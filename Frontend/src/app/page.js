@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Train, Calendar, Users, FileText, BarChart3, Shield, Zap, Clock, ChevronRight, CheckCircle, ArrowRight, TrendingUp, Cpu, ShieldCheck, BatteryCharging } from 'lucide-react';
 import { useAuth } from './context/AuthContext';
+import TrainAnimation from './components/TrainAnimation';
 
 export default function LandingPage() {
   const { user, loading } = useAuth();
@@ -84,7 +85,7 @@ export default function LandingPage() {
         <div className="absolute inset-0 -z-10">
           <div className="absolute left-1/4 top-0 w-72 h-72 bg-gradient-to-br from-gray-900/20 to-transparent rounded-full blur-3xl" />
           <div className="absolute right-1/4 bottom-0 w-96 h-96 bg-gradient-to-tr from-gray-900/10 to-transparent rounded-full blur-3xl" />
-          
+
           {/* Grid pattern overlay */}
           <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.1)_1px,transparent_1px)] bg-[size:4rem_4rem]" />
         </div>
@@ -96,19 +97,19 @@ export default function LandingPage() {
                 <TrendingUp className="h-4 w-4 mr-2" />
                 Trusted by 50+ railway operators worldwide
               </div>
-              
+
               <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-gray-900 mb-6 leading-tight tracking-tight">
                 Revolutionizing
                 <span className="block mt-2 bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
                   Railway Operations
                 </span>
               </h1>
-              
+
               <p className="text-lg sm:text-xl text-gray-700 mb-10 max-w-3xl mx-auto leading-relaxed backdrop-blur-[2px]">
-                An all-in-one platform for intelligent fleet management, predictive maintenance, 
+                An all-in-one platform for intelligent fleet management, predictive maintenance,
                 and operational excellence. Reduce downtime by 40% and increase efficiency.
               </p>
-              
+
               <div className="flex flex-col sm:flex-row justify-center gap-4 mb-16">
                 <Link href="/signup">
                   <button className="group relative px-8 py-4 bg-gradient-to-r from-gray-900 to-gray-800 text-white rounded-xl hover:shadow-2xl transition-all duration-300 font-medium text-lg overflow-hidden shadow-lg">
@@ -134,7 +135,7 @@ export default function LandingPage() {
                   { value: '24/7', label: 'Real-time Monitoring', icon: Cpu },
                   { value: '50+', label: 'Rail Networks', icon: BatteryCharging }
                 ].map((stat, idx) => (
-                  <div 
+                  <div
                     key={idx}
                     className="bg-white/90 backdrop-blur-sm p-5 rounded-xl border border-gray-200/50 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1"
                   >
@@ -155,7 +156,7 @@ export default function LandingPage() {
       <section className="relative bg-white py-20">
         {/* Background pattern for features */}
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-gray-50/30 to-transparent" />
-        
+
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-3xl font-bold text-gray-900 mb-4">
@@ -243,7 +244,7 @@ export default function LandingPage() {
                     features: ["Global CDN", "Auto-scaling", "Disaster Recovery"]
                   }
                 ].map((benefit, index) => (
-                  <div 
+                  <div
                     key={index}
                     className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-300"
                   >
@@ -277,14 +278,14 @@ export default function LandingPage() {
               <div className="relative bg-gradient-to-br from-gray-900 to-gray-800 rounded-3xl p-8 text-white overflow-hidden">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-16 translate-x-16" />
                 <div className="absolute bottom-0 left-0 w-40 h-40 bg-white/5 rounded-full translate-y-20 -translate-x-20" />
-                
+
                 <div className="relative z-10">
                   <Train className="h-20 w-20 mx-auto mb-6 text-white/90" />
                   <h3 className="text-2xl font-bold mb-4">Ready to Transform Your Operations?</h3>
                   <p className="text-gray-300 mb-6">
                     Join the leading railway operators who trust our platform for their daily operations.
                   </p>
-                  
+
                   <div className="space-y-4">
                     <Link href="/signup">
                       <button className="w-full py-3 bg-white text-gray-900 rounded-xl hover:bg-gray-100 font-semibold transition-all duration-300 hover:scale-[1.02]">
@@ -297,7 +298,7 @@ export default function LandingPage() {
                       </button>
                     </Link>
                   </div>
-                  
+
                   <div className="mt-6 pt-6 border-t border-white/20">
                     <div className="flex items-center justify-center text-sm text-gray-300">
                       <CheckCircle className="h-4 w-4 mr-2" />
@@ -318,7 +319,7 @@ export default function LandingPage() {
             <h3 className="text-2xl font-bold text-gray-900 mb-4">Trusted by Industry Leaders</h3>
             <p className="text-gray-600">Join railways that have transformed their operations</p>
           </div>
-          
+
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             {["RailNet Inc", "Metro Express", "TransGlobal", "CityRail"].map((company, idx) => (
               <div key={idx} className="flex items-center justify-center p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors duration-300">
@@ -338,7 +339,7 @@ export default function LandingPage() {
       <section className="relative bg-gradient-to-r from-gray-900 to-gray-800 py-20 overflow-hidden">
         {/* Background pattern */}
         <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:4rem_4rem]" />
-        
+
         <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-3xl font-bold text-white mb-6">
             Start Your Digital Transformation Today
@@ -378,7 +379,7 @@ export default function LandingPage() {
                 <p className="text-sm text-gray-400">Intelligent Railway Management</p>
               </div>
             </div>
-            
+
             <div className="flex flex-wrap gap-6 text-sm text-gray-400">
               <Link href="/privacy" className="hover:text-white transition-colors">
                 Privacy Policy
@@ -394,14 +395,9 @@ export default function LandingPage() {
               </Link>
             </div>
           </div>
-          
-          <div className="mt-8 pt-8 border-t border-gray-800 text-center">
-            <p className="text-gray-400 text-sm">
-              © {new Date().getFullYear()} RailSync Pro. All rights reserved. Built with ❤️ for railway excellence.
-            </p>
-          </div>
         </div>
       </footer>
+      <TrainAnimation />
     </div>
   );
 }

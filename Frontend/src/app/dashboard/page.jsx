@@ -1,264 +1,168 @@
 // src/app/dashboard/page.jsx
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
-  collection, query, where, onSnapshot, orderBy, getDocs
+  collection, doc, onSnapshot, query, where, getDocs, getDoc
 } from 'firebase/firestore';
-import { db } from '../firebase/config';
+import { db, waitForAuthReady } from '../firebase/config';
 import {
-  Train, Calendar, ChevronRight, ChevronLeft, TrendingUp, Activity,
-  Shield, Wrench, Droplets, MapPin, AlertTriangle, CheckCircle,
-  Clock, BarChart2, X, ArrowLeft, Eye, Zap
+  Train, Calendar, ChevronRight, ChevronLeft, Shield, AlertTriangle,
+  CheckCircle, X, TrendingUp, Zap, Droplets, MapPin, Wrench,
+  Bell, BarChart2, Eye, Filter
 } from 'lucide-react';
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  BarChart, Bar, Legend, AreaChart, Area
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
+import {
+  checkCertAlerts, checkBrandingAlerts, isBrandingActiveOn, isFitnessValidOn
+} from '../utils/trainDataService';
+import {
+  buildAllTrips, computeRemainingExposure, nowMin,
+} from '../lib/scheduleEngine';
 
-// ─── Hardcoded train fleet KMRL-1 to KMRL-30 ────────────────────────────────
+// ── Fleet ─────────────────────────────────────────────────────────────────────
 const TRAIN_IDS = Array.from({ length: 30 }, (_, i) => `KMRL-${i + 1}`);
-
-// ─── Utility helpers ──────────────────────────────────────────────────────────
-const today = () => new Date().toISOString().split('T')[0];
-
-const dateRange = (start, end) => {
-  const dates = [];
-  let cur = new Date(start);
-  const endDate = new Date(end);
-  while (cur <= endDate) {
-    dates.push(cur.toISOString().split('T')[0]);
-    cur.setDate(cur.getDate() + 1);
-  }
-  return dates;
-};
+const todayStr = () => new Date().toISOString().split('T')[0];
 
 const fmtDate = (d) => {
   if (!d) return '—';
-  return new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  try { return new Date(d + 'T00:00:00').toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }); }
+  catch { return d; }
 };
 
-// ─── Is a date-ranged item active on a given date? ───────────────────────────
-// For fitness certificates: valid if viewDate is between valid_from and validity dates
-// For branding: valid if viewDate is between valid_from and valid_to
-const isActiveOn = (item, viewDate, startField, endField) => {
-  if (!item[startField] || !item[endField]) return false;
-  return viewDate >= item[startField] && viewDate <= item[endField];
+const daysUntil = (dateStr) => {
+  if (!dateStr) return null;
+  return Math.ceil((new Date(dateStr) - new Date()) / (1000 * 60 * 60 * 24));
 };
 
-// ─── Mock / seed data generator (used when no Firestore data) ────────────────
-const generateSeedData = (dateStr) => {
-  // This generates deterministic mock data for a given date so the dashboard
-  // always has something to display even without real Firestore records.
-  const seed = dateStr.replace(/-/g, '');
-  const rng = (mod, offset = 0) => ((parseInt(seed) + offset) % mod);
 
-  const docs = [];
-  const chunkSize = 5; // 5 trains per doc upload
 
-  for (let chunk = 0; chunk < 6; chunk++) {
-    const branding_priorities = [];
-    const cleaning_slots = [];
-    const stabling_geometry = [];
-    const fitness_certificates = [];
-    const job_card_status = [];
-    const mileage = [];
-
-    for (let t = 0; t < chunkSize; t++) {
-      const idx = chunk * chunkSize + t;
-      if (idx >= 30) break;
-      const trainId = TRAIN_IDS[idx];
-      const baseMileage = 250000 + idx * 8000 + rng(1000, idx * 7);
-      const dayNum = parseInt(dateStr.split('-')[2]);
-
-      const brandingTypes = ['None', 'Election Awareness', 'Tourism', 'Government Campaign', 'Commercial', 'None'];
-      const brandingType = brandingTypes[rng(brandingTypes.length, idx)];
-
-      if (brandingType !== 'None') {
-        branding_priorities.push({
-          train_id: trainId,
-          exposure_minutes: 3600 + rng(1800, idx),
-          priority_level: rng(3, idx) + 1,
-          branding_type: brandingType,
-          valid_from: `${dateStr.slice(0, 8)}01`,
-          valid_to: `${dateStr.slice(0, 8)}${String(28 + rng(3, idx)).padStart(2, '0')}`,
-          approved_by: ['Marketing Dept', 'Operations', 'GM Office'][rng(3, idx)],
-        });
-      }
-
-      const cleanTypes = ['Daily Clean', 'Detailing', 'Weekly Maintenance', 'Daily Clean'];
-      cleaning_slots.push({
-        train_id: trainId,
-        cleaning_type: cleanTypes[rng(cleanTypes.length, idx + 1)],
-        slot_start: `${dateStr}T${String(22 + rng(2, idx)).padStart(2, '0')}:00`,
-        slot_end: `${dateStr}T${String(23 + rng(2, idx)).padStart(2, '0')}:${rng(2, idx) === 0 ? '45' : '30'}`,
-        assigned_team: ['Team A', 'Team B', 'Detail Squad', 'Night Crew'][rng(4, idx)],
-        status: ['Scheduled', 'In Progress', 'Completed'][rng(3, idx + dayNum)],
-      });
-
-      const depots = ['Muttom Depot', 'Kalamassery Depot'];
-      stabling_geometry.push({
-        train_id: trainId,
-        yard: depots[rng(2, idx)],
-        track_no: rng(8, idx) + 1,
-        berth: `${['A', 'B', 'C'][rng(3, idx)]}${rng(4, idx) + 1}`,
-        orientation: rng(2, idx) === 0 ? 'UP' : 'DN',
-        distance_from_buffer_m: 3.0 + (rng(30, idx) / 10),
-        remarks: rng(5, idx) > 3 ? 'Restricted movement on left side' : 'Safe clearance maintained',
-      });
-
-      const validityBase = new Date(dateStr);
-      validityBase.setDate(validityBase.getDate() + 10 + rng(60, idx));
-      const validityStr = validityBase.toISOString().split('T')[0];
-      const isFit = rng(5, idx) > 0;
-
-      fitness_certificates.push({
-        train_id: trainId,
-        rolling_stock_validity: validityStr,
-        signalling_validity: new Date(new Date(validityStr).setDate(new Date(validityStr).getDate() - rng(5, idx))).toISOString().split('T')[0],
-        telecom_validity: new Date(new Date(validityStr).setDate(new Date(validityStr).getDate() + rng(7, idx))).toISOString().split('T')[0],
-        status: isFit ? 'Fit for Service' : 'Requires Check',
-      });
-
-      if (rng(3, idx + dayNum) === 0) {
-        job_card_status.push({
-          train_id: trainId,
-          job_id: `JC-${4000 + idx * 10 + rng(9, idx)}`,
-          task: ['Brake Inspection', 'Pantograph Check', 'HVAC Service', 'Door Mechanism Check', 'Wheel Profile Measurement'][rng(5, idx)],
-          status: ['Open', 'Pending', 'Completed'][rng(3, idx + dayNum)],
-          assigned_team: 'Maintenance Team',
-          due_date: dateStr,
-          priority: ['Low', 'Medium', 'High'][rng(3, idx)],
-        });
-      }
-
-      mileage.push({
-        train_id: trainId,
-        current_mileage_km: baseMileage + dayNum * 150 + rng(50, idx),
-      });
-    }
-
-    docs.push({
-      id: `seed-${dateStr}-${chunk}`,
-      date: dateStr,
-      branding_priorities,
-      cleaning_slots,
-      stabling_geometry,
-      fitness_certificates,
-      job_card_status,
-      mileage,
-      status: 'approved',
-      source: 'seed',
-    });
-  }
-  return docs;
-};
-
-// ─── Merge multiple day documents into a unified per-train view ───────────────
-// Respects date-range data (fitness_certificates stay valid across their range)
-const buildTrainMap = (docs, viewDates) => {
-  // trainMap: { trainId -> { mileage: [], branding: [], cleaning: [], stabling: [], fitness: [], jobs: [] } }
-  const trainMap = {};
-
-  TRAIN_IDS.forEach(tid => {
-    trainMap[tid] = {
-      mileage: [],
-      branding: [],
-      cleaning: [],
-      stabling: null,
-      fitness: null,
-      jobs: [],
-    };
-  });
-
-  // Sort docs by date
-  const sortedDocs = [...docs].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
-
-  sortedDocs.forEach(doc => {
-    const docDate = doc.date;
-
-    // Mileage — per-day snapshot
-    (doc.mileage || []).forEach(m => {
-      if (trainMap[m.train_id]) {
-        trainMap[m.train_id].mileage.push({ date: docDate, ...m });
-      }
-    });
-
-    // Stabling — keep latest
-    (doc.stabling_geometry || []).forEach(s => {
-      if (trainMap[s.train_id]) {
-        trainMap[s.train_id].stabling = s;
-      }
-    });
-
-    // Branding — date-ranged, keep active entries
-    (doc.branding_priorities || []).forEach(b => {
-      if (trainMap[b.train_id]) {
-        // Avoid duplicates
-        const alreadyHas = trainMap[b.train_id].branding.some(
-          existing => existing.branding_type === b.branding_type && existing.valid_from === b.valid_from
-        );
-        if (!alreadyHas) {
-          trainMap[b.train_id].branding.push(b);
-        }
-      }
-    });
-
-    // Cleaning — per-day
-    (doc.cleaning_slots || []).forEach(c => {
-      if (trainMap[c.train_id]) {
-        trainMap[c.train_id].cleaning.push({ date: docDate, ...c });
-      }
-    });
-
-    // Fitness — date-ranged (keep latest that's valid)
-    (doc.fitness_certificates || []).forEach(f => {
-      if (trainMap[f.train_id]) {
-        trainMap[f.train_id].fitness = f; // always overwrite with latest
-      }
-    });
-
-    // Jobs
-    (doc.job_card_status || []).forEach(j => {
-      if (trainMap[j.train_id]) {
-        const alreadyHas = trainMap[j.train_id].jobs.some(ex => ex.job_id === j.job_id);
-        if (!alreadyHas) {
-          trainMap[j.train_id].jobs.push({ date: docDate, ...j });
-        }
-      }
-    });
-  });
-
-  // Filter branding to active on any selected date
-  TRAIN_IDS.forEach(tid => {
-    trainMap[tid].branding = trainMap[tid].branding.filter(b =>
-      viewDates.some(d => d >= (b.valid_from || '') && d <= (b.valid_to || d))
-    );
-  });
-
-  return trainMap;
-};
-
-// ─── Status badge component ───────────────────────────────────────────────────
-const Badge = ({ label, color }) => {
-  const colors = {
+// ── Badge component ───────────────────────────────────────────────────────────
+const Badge = ({ label, color = 'gray' }) => {
+  const cls = {
     green: 'bg-emerald-100 text-emerald-800 border border-emerald-200',
     red: 'bg-red-100 text-red-800 border border-red-200',
     orange: 'bg-amber-100 text-amber-800 border border-amber-200',
     blue: 'bg-blue-100 text-blue-800 border border-blue-200',
-    gray: 'bg-gray-100 text-gray-600 border border-gray-200',
     purple: 'bg-violet-100 text-violet-800 border border-violet-200',
+    gray: 'bg-gray-100 text-gray-600 border border-gray-200',
   };
+  return <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold ${cls[color]}`}>{label}</span>;
+};
+
+// ── Alert banner component ────────────────────────────────────────────────────
+const AlertBanner = ({ alerts, onDismiss }) => {
+  if (!alerts.length) return null;
+  const expired = alerts.filter(a => a.type === 'expired');
+  const warnings = alerts.filter(a => a.type === 'warning');
+
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${colors[color] || colors.gray}`}>
-      {label}
-    </span>
+    <div className="mb-4 space-y-2">
+      {expired.length > 0 && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <p className="font-bold text-red-800 text-sm mb-1">🚨 {expired.length} Expired Certificate{expired.length > 1 ? 's' : ''}</p>
+            <ul className="text-xs text-red-700 space-y-0.5">
+              {expired.slice(0, 5).map((a, i) => <li key={i}>• {a.message}</li>)}
+              {expired.length > 5 && <li className="font-semibold">• ...and {expired.length - 5} more</li>}
+            </ul>
+          </div>
+          <button onClick={() => onDismiss('expired')} className="text-red-400 hover:text-red-600 flex-shrink-0">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+      {warnings.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
+          <Bell className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <p className="font-bold text-amber-800 text-sm mb-1">⚠️ {warnings.length} Expiring Soon (within 7 days)</p>
+            <ul className="text-xs text-amber-700 space-y-0.5">
+              {warnings.slice(0, 5).map((a, i) => <li key={i}>• {a.message}</li>)}
+              {warnings.length > 5 && <li className="font-semibold">• ...and {warnings.length - 5} more</li>}
+            </ul>
+          </div>
+          <button onClick={() => onDismiss('warning')} className="text-amber-400 hover:text-amber-600 flex-shrink-0">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+    </div>
   );
 };
 
-// ─── Train Detail / Drill-down panel ─────────────────────────────────────────
-const TrainDetailPanel = ({ trainId, trainData, onClose }) => {
-  const [activeTab, setActiveTab] = useState('overview');
+// ── Calendar date picker ──────────────────────────────────────────────────────
+const DatePicker = ({ selectedDates, onToggle, onClear }) => {
+  const [cal, setCal] = useState(() => {
+    const d = new Date(); return { y: d.getFullYear(), m: d.getMonth() };
+  });
+  const daysInMonth = new Date(cal.y, cal.m + 1, 0).getDate();
+  const firstDay = new Date(cal.y, cal.m, 1).getDay();
+  const label = new Date(cal.y, cal.m, 1).toLocaleString('default', { month: 'long', year: 'numeric' });
+  const prev = () => setCal(c => { const d = new Date(c.y, c.m - 1, 1); return { y: d.getFullYear(), m: d.getMonth() }; });
+  const next = () => setCal(c => { const d = new Date(c.y, c.m + 1, 1); return { y: d.getFullYear(), m: d.getMonth() }; });
+
+  return (
+    <div className="bg-white border rounded-2xl p-4 shadow-sm">
+      <div className="flex items-center justify-between mb-3">
+        <button onClick={prev} className="p-1.5 hover:bg-gray-100 rounded-lg"><ChevronLeft className="w-4 h-4" /></button>
+        <span className="font-semibold text-sm">{label}</span>
+        <button onClick={next} className="p-1.5 hover:bg-gray-100 rounded-lg"><ChevronRight className="w-4 h-4" /></button>
+      </div>
+      <div className="grid grid-cols-7 mb-1">
+        {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(d => (
+          <div key={d} className="text-center text-xs text-gray-400 py-1">{d}</div>
+        ))}
+      </div>
+      <div className="grid grid-cols-7 gap-0.5">
+        {Array.from({ length: firstDay }).map((_, i) => <div key={`e${i}`} />)}
+        {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(day => {
+          const ds = `${cal.y}-${String(cal.m + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+          const sel = selectedDates.includes(ds);
+          const isToday = ds === todayStr();
+          return (
+            <button key={day} onClick={() => onToggle(ds)}
+              className={`text-center text-xs py-1.5 rounded-lg font-medium transition
+                ${sel ? 'bg-slate-800 text-white' : isToday ? 'bg-blue-50 text-blue-700 ring-1 ring-blue-300' : 'hover:bg-gray-100 text-gray-700'}`}>
+              {day}
+            </button>
+          );
+        })}
+      </div>
+      {selectedDates.length > 0 && (
+        <button onClick={onClear} className="mt-3 w-full text-xs text-gray-400 hover:text-gray-600 underline transition">
+          Clear {selectedDates.length} selected
+        </button>
+      )}
+    </div>
+  );
+};
+
+// ── Train Detail Panel ────────────────────────────────────────────────────────
+const TrainDetail = ({ trainId, masterData, dailyData, selectedDates, allTrips = [], nowTime, onClose }) => {
+  const [tab, setTab] = useState('overview');
+
+  const fitness = masterData?.fitness_certificates;
+  const branding = masterData?.branding_priorities || [];
+  const today = todayStr();
+
+  // Aggregate daily data across selected dates
+  const allMileage = dailyData
+    .filter(d => d.mileage)
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .map(d => ({ date: d.date.slice(5), km: d.mileage.current_mileage_km }));
+
+  const latestDaily = dailyData.sort((a, b) => b.date.localeCompare(a.date))[0];
+  const latestMileage = latestDaily?.mileage?.current_mileage_km;
+  const allJobs = dailyData.flatMap(d => (d.job_card_status || []).map(j => ({ ...j, date: d.date })));
+  const allCleaning = dailyData.flatMap(d => (d.cleaning_slots || []).map(c => ({ ...c, date: d.date })));
+  const stabling = latestDaily?.stabling_geometry;
+
+  // Cert expiry alerts for this train (vs today)
+  const certAlerts = fitness ? checkCertAlerts(fitness, today, trainId) : [];
+  const brandingAlerts = checkBrandingAlerts(branding, today, trainId);
 
   const tabs = [
     { id: 'overview', label: 'Overview', icon: Eye },
@@ -268,26 +172,16 @@ const TrainDetailPanel = ({ trainId, trainData, onClose }) => {
     { id: 'jobs', label: 'Jobs', icon: Wrench },
   ];
 
-  const mileageChartData = trainData.mileage
-    .slice(-14)
-    .map(m => ({ date: m.date, km: m.current_mileage_km }));
-
-  const latestMileage = trainData.mileage[trainData.mileage.length - 1];
-  const firstMileage = trainData.mileage[0];
-  const totalGain = latestMileage && firstMileage
-    ? latestMileage.current_mileage_km - firstMileage.current_mileage_km
-    : 0;
-
-  const activeBranding = trainData.branding[0];
-  const brandingExposurePercent = activeBranding
-    ? Math.min(100, Math.round((activeBranding.exposure_minutes / 7200) * 100))
-    : 0;
+  const activeBranding = branding.filter(b =>
+    selectedDates.some(d => isBrandingActiveOn(b, d))
+  );
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4">
       <div className="bg-white w-full sm:max-w-3xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[95vh] overflow-hidden">
+
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b bg-gradient-to-r from-slate-800 to-slate-700 sm:rounded-t-2xl">
+        <div className="flex items-center justify-between px-6 py-4 bg-slate-800 sm:rounded-t-2xl">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
               <Train className="w-5 h-5 text-white" />
@@ -295,30 +189,38 @@ const TrainDetailPanel = ({ trainId, trainData, onClose }) => {
             <div>
               <h2 className="text-white font-bold text-lg leading-none">{trainId}</h2>
               <p className="text-slate-300 text-xs mt-0.5">
-                {trainData.stabling?.yard || 'No depot data'} • Track {trainData.stabling?.track_no || '—'} • Berth {trainData.stabling?.berth || '—'}
+                {stabling?.yard || '—'} • Track {stabling?.track_no || '—'} • Berth {stabling?.berth || '—'}
               </p>
             </div>
           </div>
-          <button onClick={onClose} className="text-white/60 hover:text-white transition">
+          {(certAlerts.length > 0 || brandingAlerts.length > 0) && (
+            <div className="mr-3 flex items-center gap-1 bg-red-500/20 border border-red-400/30 px-2.5 py-1 rounded-full">
+              <AlertTriangle className="w-3.5 h-3.5 text-red-300" />
+              <span className="text-red-200 text-xs font-bold">
+                {certAlerts.length + brandingAlerts.length} Alert{certAlerts.length + brandingAlerts.length > 1 ? 's' : ''}
+              </span>
+            </div>
+          )}
+          <button onClick={onClose} className="text-white/60 hover:text-white">
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Tabs */}
-        <div className="flex overflow-x-auto border-b bg-gray-50 px-4">
-          {tabs.map(tab => {
-            const Icon = tab.icon;
+        <div className="flex overflow-x-auto border-b bg-gray-50 px-2">
+          {tabs.map(t => {
+            const Icon = t.icon;
+            const hasAlert = (t.id === 'fitness' && certAlerts.length > 0) ||
+              (t.id === 'branding' && brandingAlerts.length > 0);
             return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-1.5 px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition ${activeTab === tab.id
-                  ? 'border-slate-800 text-slate-800'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
-              >
+              <button key={t.id} onClick={() => setTab(t.id)}
+                className={`relative flex items-center gap-1.5 px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition
+                  ${tab === t.id ? 'border-slate-800 text-slate-800' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
                 <Icon className="w-3.5 h-3.5" />
-                {tab.label}
+                {t.label}
+                {hasAlert && (
+                  <span className="absolute top-1.5 right-1 w-2 h-2 bg-red-500 rounded-full" />
+                )}
               </button>
             );
           })}
@@ -326,315 +228,324 @@ const TrainDetailPanel = ({ trainId, trainData, onClose }) => {
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
-          {/* OVERVIEW TAB */}
-          {activeTab === 'overview' && (
-            <div className="space-y-4">
-              {/* KPI cards */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="bg-slate-50 rounded-xl p-4 border">
-                  <p className="text-xs text-gray-500 mb-1">Current Mileage</p>
-                  <p className="text-xl font-bold text-slate-800">
-                    {latestMileage ? latestMileage.current_mileage_km.toLocaleString() : '—'}
-                  </p>
-                  <p className="text-xs text-gray-400">km</p>
-                </div>
-                <div className="bg-slate-50 rounded-xl p-4 border">
-                  <p className="text-xs text-gray-500 mb-1">Period Gain</p>
-                  <p className="text-xl font-bold text-emerald-600">+{totalGain.toLocaleString()}</p>
-                  <p className="text-xs text-gray-400">km selected period</p>
-                </div>
-                <div className="bg-slate-50 rounded-xl p-4 border">
-                  <p className="text-xs text-gray-500 mb-1">Fitness</p>
-                  <p className={`text-sm font-bold mt-1 ${trainData.fitness?.status === 'Fit for Service' ? 'text-emerald-600' : 'text-red-500'}`}>
-                    {trainData.fitness?.status || 'Unknown'}
-                  </p>
-                </div>
-                <div className="bg-slate-50 rounded-xl p-4 border">
-                  <p className="text-xs text-gray-500 mb-1">Open Jobs</p>
-                  <p className="text-xl font-bold text-amber-600">
-                    {trainData.jobs.filter(j => j.status === 'Open' || j.status === 'Pending').length}
-                  </p>
-                  <p className="text-xs text-gray-400">pending tasks</p>
-                </div>
-              </div>
 
-              {/* Branding exposure bar */}
-              {activeBranding && (
-                <div className="bg-violet-50 border border-violet-100 rounded-xl p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm font-semibold text-violet-900">{activeBranding.branding_type} Campaign</p>
-                    <Badge label={`Priority ${activeBranding.priority_level}`} color="purple" />
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1 bg-violet-200 rounded-full h-2.5">
-                      <div
-                        className="bg-violet-600 h-2.5 rounded-full transition-all"
-                        style={{ width: `${brandingExposurePercent}%` }}
-                      />
-                    </div>
-                    <span className="text-xs font-bold text-violet-700">{brandingExposurePercent}%</span>
-                  </div>
-                  <p className="text-xs text-violet-500 mt-1.5">
-                    {activeBranding.exposure_minutes?.toLocaleString()} min • Valid {fmtDate(activeBranding.valid_from)} → {fmtDate(activeBranding.valid_to)}
+          {/* OVERVIEW */}
+          {tab === 'overview' && (
+            <div className="space-y-4">
+              {/* Expiry alerts inside panel */}
+              {(certAlerts.length > 0 || brandingAlerts.length > 0) && (
+                <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                  <p className="font-bold text-red-800 text-sm mb-2 flex items-center gap-1.5">
+                    <AlertTriangle className="w-4 h-4" /> Alerts for {trainId}
                   </p>
+                  {[...certAlerts, ...brandingAlerts].map((a, i) => (
+                    <p key={i} className={`text-xs mb-0.5 ${a.type === 'expired' ? 'text-red-700 font-semibold' : 'text-amber-700'}`}>
+                      {a.type === 'expired' ? '🚨' : '⚠️'} {a.field}: {a.type === 'expired' ? `Expired ${a.expiryDate}` : `Expires ${a.expiryDate} (${a.daysLeft}d)`}
+                    </p>
+                  ))}
                 </div>
               )}
 
-              {/* Stabling info */}
-              {trainData.stabling && (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="bg-slate-50 border rounded-xl p-4">
+                  <p className="text-xs text-gray-400 mb-1">Current Mileage</p>
+                  {latestMileage != null
+                    ? <><p className="text-xl font-bold">{latestMileage.toLocaleString()}</p><p className="text-xs text-gray-400">km</p></>
+                    : <p className="text-sm text-gray-300 italic mt-1">Not uploaded</p>
+                  }
+                </div>
+                <div className={`border rounded-xl p-4 ${!fitness ? 'bg-gray-50' : fitness.status === 'Fit for Service' ? 'bg-emerald-50' : 'bg-red-50'}`}>
+                  <p className="text-xs text-gray-400 mb-1">Fitness</p>
+                  {fitness
+                    ? <p className={`text-sm font-bold ${fitness.status === 'Fit for Service' ? 'text-emerald-700' : 'text-red-600'}`}>{fitness.status}</p>
+                    : <p className="text-sm text-gray-300 italic mt-1">Not uploaded</p>
+                  }
+                </div>
+                <div className="bg-slate-50 border rounded-xl p-4">
+                  <p className="text-xs text-gray-400 mb-1">Open Jobs</p>
+                  <p className="text-xl font-bold text-amber-600">
+                    {allJobs.filter(j => j.status === 'Open').length}
+                  </p>
+                </div>
+                <div className={`border rounded-xl p-4 ${activeBranding.length > 0 ? 'bg-violet-50' : 'bg-gray-50'}`}>
+                  <p className="text-xs text-gray-400 mb-1">Branding</p>
+                  <p className={`text-sm font-bold ${activeBranding.length > 0 ? 'text-violet-700' : 'text-gray-400'}`}>
+                    {activeBranding.length > 0 ? activeBranding[0].branding_type : '—'}
+                  </p>
+                </div>
+              </div>
+
+              {stabling ? (
                 <div className="border rounded-xl p-4">
                   <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-1.5">
-                    <MapPin className="w-4 h-4" /> Stabling Position
+                    <MapPin className="w-4 h-4" /> Latest Stabling
                   </h4>
                   <div className="grid grid-cols-3 gap-3 text-sm">
-                    <div>
-                      <p className="text-gray-400 text-xs">Yard</p>
-                      <p className="font-medium">{trainData.stabling.yard}</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-400 text-xs">Track</p>
-                      <p className="font-medium">{trainData.stabling.track_no}</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-400 text-xs">Berth</p>
-                      <p className="font-medium">{trainData.stabling.berth}</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-400 text-xs">Orientation</p>
-                      <p className="font-medium">{trainData.stabling.orientation}</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-400 text-xs">Buffer Dist.</p>
-                      <p className="font-medium">{trainData.stabling.distance_from_buffer_m}m</p>
-                    </div>
+                    {[
+                      ['Yard', stabling.yard], ['Track', stabling.track_no], ['Berth', stabling.berth],
+                      ['Orientation', stabling.orientation], ['Buffer', `${stabling.distance_from_buffer_m}m`],
+                    ].map(([k, v]) => (
+                      <div key={k}><p className="text-xs text-gray-400">{k}</p><p className="font-medium">{v}</p></div>
+                    ))}
                   </div>
-                  {trainData.stabling.remarks && (
-                    <p className="text-xs text-gray-500 mt-2 italic">"{trainData.stabling.remarks}"</p>
-                  )}
+                  {stabling.remarks && <p className="text-xs text-gray-400 mt-2 italic">"{stabling.remarks}"</p>}
+                </div>
+              ) : (
+                <div className="border border-dashed rounded-xl p-4 text-center text-gray-300 text-sm">
+                  <MapPin className="w-5 h-5 mx-auto mb-1 opacity-40" />
+                  No stabling data uploaded for selected date{selectedDates.length > 1 ? 's' : ''}
                 </div>
               )}
 
-              {/* Latest cleaning */}
-              {trainData.cleaning.length > 0 && (
+              {allCleaning.length > 0 ? (
                 <div className="border rounded-xl p-4">
-                  <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-1.5">
-                    <Droplets className="w-4 h-4" /> Cleaning History ({trainData.cleaning.length} records)
+                  <h4 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1.5">
+                    <Droplets className="w-4 h-4" /> Cleaning ({allCleaning.length})
                   </h4>
-                  <div className="space-y-2">
-                    {trainData.cleaning.slice(-3).reverse().map((c, i) => (
-                      <div key={i} className="flex items-center justify-between text-sm py-1.5 border-b last:border-0">
-                        <div>
-                          <span className="font-medium">{c.cleaning_type}</span>
-                          <span className="text-gray-400 ml-2 text-xs">{c.assigned_team}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-gray-400">{c.date}</span>
-                          <Badge
-                            label={c.status}
-                            color={c.status === 'Completed' ? 'green' : c.status === 'In Progress' ? 'orange' : 'blue'}
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* MILEAGE TAB */}
-          {activeTab === 'mileage' && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-3 gap-3 text-center">
-                <div className="bg-slate-50 rounded-xl p-4 border">
-                  <p className="text-xs text-gray-400">Latest</p>
-                  <p className="text-lg font-bold">{latestMileage?.current_mileage_km?.toLocaleString() || '—'} km</p>
-                </div>
-                <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-100">
-                  <p className="text-xs text-gray-400">Period Gain</p>
-                  <p className="text-lg font-bold text-emerald-600">+{totalGain.toLocaleString()} km</p>
-                </div>
-                <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
-                  <p className="text-xs text-gray-400">Days Tracked</p>
-                  <p className="text-lg font-bold text-blue-600">{trainData.mileage.length}</p>
-                </div>
-              </div>
-              {mileageChartData.length > 1 ? (
-                <div className="border rounded-xl p-4">
-                  <h4 className="text-sm font-semibold text-gray-700 mb-4">Mileage Progression</h4>
-                  <ResponsiveContainer width="100%" height={220}>
-                    <AreaChart data={mileageChartData}>
-                      <defs>
-                        <linearGradient id="mileageGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#334155" stopOpacity={0.15} />
-                          <stop offset="95%" stopColor="#334155" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                      <XAxis dataKey="date" tick={{ fontSize: 10 }} tickFormatter={d => d.slice(5)} />
-                      <YAxis tick={{ fontSize: 10 }} tickFormatter={v => `${Math.round(v / 1000)}k`} />
-                      <Tooltip formatter={v => [`${v.toLocaleString()} km`, 'Mileage']} labelFormatter={d => `Date: ${d}`} />
-                      <Area type="monotone" dataKey="km" stroke="#334155" strokeWidth={2} fill="url(#mileageGrad)" />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              ) : (
-                <div className="border rounded-xl p-8 text-center text-gray-400 text-sm">
-                  Select multiple dates to see mileage trend chart.
-                </div>
-              )}
-              <div className="border rounded-xl overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500">Date</th>
-                      <th className="text-right px-4 py-2.5 text-xs font-semibold text-gray-500">Mileage (km)</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {[...trainData.mileage].reverse().slice(0, 10).map((m, i) => (
-                      <tr key={i} className="border-t hover:bg-gray-50">
-                        <td className="px-4 py-2.5 text-gray-600">{m.date}</td>
-                        <td className="px-4 py-2.5 text-right font-mono font-medium">{m.current_mileage_km.toLocaleString()}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {/* BRANDING TAB */}
-          {activeTab === 'branding' && (
-            <div className="space-y-4">
-              {trainData.branding.length === 0 ? (
-                <div className="text-center py-10 text-gray-400">
-                  <Zap className="w-10 h-10 mx-auto mb-2 opacity-30" />
-                  <p className="text-sm">No active branding campaigns for selected dates.</p>
-                </div>
-              ) : (
-                trainData.branding.map((b, i) => {
-                  const pct = Math.min(100, Math.round((b.exposure_minutes / 7200) * 100));
-                  return (
-                    <div key={i} className="border rounded-xl p-5">
-                      <div className="flex items-start justify-between mb-4">
-                        <div>
-                          <p className="font-bold text-slate-800">{b.branding_type}</p>
-                          <p className="text-xs text-gray-400 mt-0.5">Approved by {b.approved_by}</p>
-                        </div>
-                        <Badge label={`Priority ${b.priority_level}`} color="purple" />
-                      </div>
-                      <div className="mb-3">
-                        <div className="flex justify-between text-xs text-gray-500 mb-1">
-                          <span>Exposure Completion</span>
-                          <span className="font-bold">{pct}%</span>
-                        </div>
-                        <div className="bg-gray-100 rounded-full h-3">
-                          <div className="bg-violet-500 h-3 rounded-full" style={{ width: `${pct}%` }} />
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-3 text-xs text-gray-600 mt-3">
-                        <div><span className="text-gray-400">Exposure Minutes</span><br />{b.exposure_minutes?.toLocaleString()} min</div>
-                        <div><span className="text-gray-400">Valid Period</span><br />{fmtDate(b.valid_from)} → {fmtDate(b.valid_to)}</div>
+                  {allCleaning.slice(0, 3).map((c, i) => (
+                    <div key={i} className="flex items-center justify-between py-1.5 border-b last:border-0 text-sm">
+                      <span>{c.cleaning_type} <span className="text-xs text-gray-400">— {c.assigned_team}</span></span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-400">{c.date}</span>
+                        <Badge label={c.status} color={c.status === 'Completed' ? 'green' : c.status === 'In Progress' ? 'orange' : 'blue'} />
                       </div>
                     </div>
-                  );
-                })
+                  ))}
+                </div>
+              ) : (
+                <div className="border border-dashed rounded-xl p-4 text-center text-gray-300 text-sm">
+                  <Droplets className="w-5 h-5 mx-auto mb-1 opacity-40" />
+                  No cleaning data uploaded for selected date{selectedDates.length > 1 ? 's' : ''}
+                </div>
               )}
             </div>
           )}
 
-          {/* FITNESS TAB */}
-          {activeTab === 'fitness' && (
+          {/* MILEAGE */}
+          {tab === 'mileage' && (
             <div className="space-y-4">
-              {!trainData.fitness ? (
-                <div className="text-center py-10 text-gray-400 text-sm">No fitness certificate data available.</div>
+              {allMileage.length === 0 ? (
+                <div className="border border-dashed rounded-xl p-12 text-center text-gray-300">
+                  <TrendingUp className="w-10 h-10 mx-auto mb-2 opacity-40" />
+                  <p className="text-sm">No mileage data uploaded for selected date{selectedDates.length > 1 ? 's' : ''}.</p>
+                  <p className="text-xs mt-1">Submit an induction form with a mileage reading to see data here.</p>
+                </div>
               ) : (
                 <>
-                  <div className={`rounded-xl p-5 border ${trainData.fitness.status === 'Fit for Service' ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>
-                    <div className="flex items-center gap-3">
-                      {trainData.fitness.status === 'Fit for Service'
-                        ? <CheckCircle className="w-8 h-8 text-emerald-600" />
-                        : <AlertTriangle className="w-8 h-8 text-red-500" />
-                      }
-                      <div>
-                        <p className="font-bold text-lg">{trainData.fitness.status}</p>
-                        <p className="text-xs text-gray-500">Certificate validity status</p>
-                      </div>
+                  {allMileage.length > 1 ? (
+                    <div className="border rounded-xl p-4">
+                      <h4 className="text-sm font-semibold text-gray-700 mb-4">Mileage Progression</h4>
+                      <ResponsiveContainer width="100%" height={220}>
+                        <AreaChart data={allMileage}>
+                          <defs>
+                            <linearGradient id="mg" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#334155" stopOpacity={0.12} />
+                              <stop offset="95%" stopColor="#334155" stopOpacity={0} />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                          <XAxis dataKey="date" tick={{ fontSize: 10 }} />
+                          <YAxis tick={{ fontSize: 10 }} tickFormatter={v => `${Math.round(v / 1000)}k`} />
+                          <Tooltip formatter={v => [`${v.toLocaleString()} km`]} />
+                          <Area type="monotone" dataKey="km" stroke="#334155" strokeWidth={2} fill="url(#mg)" />
+                        </AreaChart>
+                      </ResponsiveContainer>
                     </div>
-                  </div>
-
+                  ) : (
+                    <div className="border rounded-xl p-4 text-center text-gray-400 text-sm">
+                      Select multiple dates to see mileage trend chart.
+                    </div>
+                  )}
                   <div className="border rounded-xl overflow-hidden">
                     <table className="w-full text-sm">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">Certificate Type</th>
-                          <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">Valid Until</th>
-                          <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">Status</th>
-                        </tr>
-                      </thead>
+                      <thead className="bg-gray-50"><tr>
+                        <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500">Date</th>
+                        <th className="text-right px-4 py-2.5 text-xs font-semibold text-gray-500">Mileage (km)</th>
+                      </tr></thead>
+                      <tbody>
+                        {[...dailyData].sort((a, b) => b.date.localeCompare(a.date)).map((d, i) => d.mileage && (
+                          <tr key={i} className="border-t hover:bg-gray-50">
+                            <td className="px-4 py-2.5 text-gray-600">{d.date}</td>
+                            <td className="px-4 py-2.5 text-right font-mono font-medium">{d.mileage.current_mileage_km.toLocaleString()}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* BRANDING */}
+          {tab === 'branding' && (
+            <div className="space-y-4">
+              {brandingAlerts.length > 0 && (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
+                  {brandingAlerts.map((a, i) => (
+                    <p key={i} className="text-xs text-amber-800">
+                      {a.type === 'expired' ? '🚨' : '⚠️'} {a.message}
+                    </p>
+                  ))}
+                </div>
+              )}
+              {branding.length === 0 ? (
+                <div className="text-center py-10 text-gray-400 text-sm">No branding campaigns.</div>
+              ) : branding.map((b, i) => {
+                const exp = computeRemainingExposure(trainId, b, allTrips, nowTime);
+                const remaining = exp?.remaining ?? b.exposure_minutes ?? 0;
+                const total = exp?.total ?? b.exposure_minutes ?? 0;
+                const pct = exp?.pct ?? 100;
+                const completedTrips = exp?.completedTrips ?? 0;
+                const used = exp?.used ?? 0;
+                const barColor = pct === 0 ? 'bg-red-500'
+                  : pct <= 20 ? 'bg-amber-400'
+                    : pct <= 50 ? 'bg-yellow-400'
+                      : 'bg-violet-500';
+                const textColor = pct === 0 ? 'text-red-600'
+                  : pct <= 20 ? 'text-amber-600'
+                    : pct <= 50 ? 'text-yellow-600'
+                      : 'text-violet-700';
+                const activeOnDates = selectedDates.filter(d => isBrandingActiveOn(b, d));
+                return (
+                  <div key={i} className="border rounded-xl p-5">
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        <p className="font-bold">{b.branding_type}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">By {b.approved_by}</p>
+                      </div>
+                      <div className="flex flex-col items-end gap-1">
+                        <Badge label={`Priority ${b.priority_level}`} color="purple" />
+                        {activeOnDates.length > 0
+                          ? <Badge label={`Active ${activeOnDates.length}d`} color="green" />
+                          : <Badge label="Inactive on selected dates" color="gray" />
+                        }
+                        {exp?.status === 'exhausted' && <Badge label="Exposure Exhausted" color="red" />}
+                        {exp?.status === 'low' && <Badge label="Low Exposure" color="orange" />}
+                      </div>
+                    </div>
+
+                    {/* Live exposure countdown bar */}
+                    <div className="mb-3 bg-gray-50 rounded-xl p-3 border">
+                      <div className="flex justify-between items-baseline mb-1.5">
+                        <span className="text-xs text-gray-500 font-medium">Remaining Exposure</span>
+                        <span className={`text-sm font-bold ${textColor}`}>
+                          {remaining.toLocaleString()} min
+                        </span>
+                      </div>
+                      <div className="bg-gray-200 rounded-full h-2.5 mb-1.5">
+                        <div
+                          className={`${barColor} h-2.5 rounded-full transition-all duration-1000`}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                      <div className="flex justify-between text-[11px] text-gray-400">
+                        <span>{used.toLocaleString()} min used · {completedTrips} trip{completedTrips !== 1 ? 's' : ''} completed</span>
+                        <span>{pct}% of {total.toLocaleString()} min</span>
+                      </div>
+                    </div>
+
+                    <p className="text-xs text-gray-400 mt-2">
+                      Valid: {fmtDate(b.valid_from)} → {fmtDate(b.valid_to)}
+                      {daysUntil(b.valid_to) !== null && (
+                        <span className={`ml-2 font-semibold ${daysUntil(b.valid_to) < 0 ? 'text-red-500' : daysUntil(b.valid_to) <= 3 ? 'text-amber-600' : 'text-gray-400'}`}>
+                          ({daysUntil(b.valid_to) < 0 ? `Expired ${Math.abs(daysUntil(b.valid_to))}d ago` : `${daysUntil(b.valid_to)}d left`})
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                );
+              })}
+              <p className="text-xs text-center text-gray-400 italic">
+                ℹ️ Branding is shown for all selected dates within its valid_from → valid_to window.
+                New submissions override this record.
+              </p>
+            </div>
+          )}
+
+          {/* FITNESS */}
+          {tab === 'fitness' && (
+            <div className="space-y-4">
+              {certAlerts.length > 0 && (
+                <div className="bg-red-50 border border-red-200 rounded-xl p-3">
+                  {certAlerts.map((a, i) => (
+                    <p key={i} className={`text-xs ${a.type === 'expired' ? 'text-red-700 font-bold' : 'text-amber-700'}`}>
+                      {a.type === 'expired' ? '🚨' : '⚠️'} {a.message}
+                    </p>
+                  ))}
+                </div>
+              )}
+              {!fitness ? (
+                <div className="text-center py-10 text-gray-400 text-sm">No fitness data.</div>
+              ) : (
+                <>
+                  <div className={`rounded-xl p-5 border flex items-center gap-4 ${fitness.status === 'Fit for Service' ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>
+                    {fitness.status === 'Fit for Service'
+                      ? <CheckCircle className="w-8 h-8 text-emerald-600" />
+                      : <AlertTriangle className="w-8 h-8 text-red-500" />
+                    }
+                    <div>
+                      <p className="font-bold text-lg">{fitness.status}</p>
+                      <p className="text-xs text-gray-500">Master record — overrideable via new submission</p>
+                    </div>
+                  </div>
+                  <div className="border rounded-xl overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-50"><tr>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">Certificate</th>
+                        <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">Valid Until</th>
+                        <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500">Status</th>
+                      </tr></thead>
                       <tbody>
                         {[
-                          { label: 'Rolling Stock', key: 'rolling_stock_validity' },
-                          { label: 'Signalling', key: 'signalling_validity' },
-                          { label: 'Telecom', key: 'telecom_validity' },
-                        ].map(cert => {
-                          const expiry = trainData.fitness[cert.key];
-                          const isExpired = expiry && expiry < today();
+                          ['Rolling Stock', 'rolling_stock_validity'],
+                          ['Signalling', 'signalling_validity'],
+                          ['Telecom', 'telecom_validity'],
+                        ].map(([label, key]) => {
+                          const exp = fitness[key];
+                          const d = daysUntil(exp);
+                          const color = !exp ? 'gray' : d < 0 ? 'red' : d <= 7 ? 'orange' : 'green';
+                          const statusLabel = !exp ? 'No Data' : d < 0 ? `Expired ${Math.abs(d)}d ago` : d <= 7 ? `${d}d left` : 'Valid';
                           return (
-                            <tr key={cert.key} className="border-t">
-                              <td className="px-4 py-3">{cert.label}</td>
-                              <td className="px-4 py-3 text-right font-mono text-sm">{fmtDate(expiry)}</td>
-                              <td className="px-4 py-3 text-right">
-                                <Badge label={isExpired ? 'Expired' : 'Valid'} color={isExpired ? 'red' : 'green'} />
-                              </td>
+                            <tr key={key} className="border-t">
+                              <td className="px-4 py-3">{label}</td>
+                              <td className="px-4 py-3 text-right font-mono text-sm">{fmtDate(exp)}</td>
+                              <td className="px-4 py-3 text-right"><Badge label={statusLabel} color={color} /></td>
                             </tr>
                           );
                         })}
                       </tbody>
                     </table>
                   </div>
-                  <p className="text-xs text-gray-400 italic text-center">
-                    ℹ️ Fitness certificates are shown for all dates within their validity period.
+                  <p className="text-xs text-center text-gray-400 italic">
+                    ℹ️ This is a master record. Submit a new induction with &quot;Update fitness&quot; toggled to override.
+                    Validity is shown across all dates within the certificate window.
                   </p>
                 </>
               )}
             </div>
           )}
 
-          {/* JOBS TAB */}
-          {activeTab === 'jobs' && (
+          {/* JOBS */}
+          {tab === 'jobs' && (
             <div className="space-y-3">
-              {trainData.jobs.length === 0 ? (
-                <div className="text-center py-10 text-gray-400">
-                  <Wrench className="w-10 h-10 mx-auto mb-2 opacity-30" />
-                  <p className="text-sm">No job cards for selected dates.</p>
-                </div>
-              ) : (
-                trainData.jobs.map((j, i) => (
-                  <div key={i} className="border rounded-xl p-4">
-                    <div className="flex items-start justify-between mb-2">
-                      <div>
-                        <p className="font-semibold text-sm">{j.task}</p>
-                        <p className="text-xs text-gray-400">{j.job_id} • {j.assigned_team}</p>
-                      </div>
-                      <div className="flex gap-1.5">
-                        <Badge
-                          label={j.priority}
-                          color={j.priority === 'High' ? 'red' : j.priority === 'Medium' ? 'orange' : 'gray'}
-                        />
-                        <Badge
-                          label={j.status}
-                          color={j.status === 'Completed' ? 'green' : j.status === 'Open' ? 'red' : 'orange'}
-                        />
-                      </div>
+              {allJobs.length === 0 ? (
+                <div className="text-center py-10 text-gray-400 text-sm">No job cards for selected dates.</div>
+              ) : allJobs.map((j, i) => (
+                <div key={i} className="border rounded-xl p-4">
+                  <div className="flex items-start justify-between mb-2">
+                    <div>
+                      <p className="font-semibold text-sm">{j.task}</p>
+                      <p className="text-xs text-gray-400">{j.job_id} • {j.assigned_team}</p>
                     </div>
-                    <div className="text-xs text-gray-400">
-                      Date: {j.date} • Due: {fmtDate(j.due_date)}
+                    <div className="flex gap-1.5 flex-wrap justify-end">
+                      <Badge label={j.priority} color={j.priority === 'High' ? 'red' : j.priority === 'Medium' ? 'orange' : 'gray'} />
+                      <Badge label={j.status} color={j.status === 'Completed' ? 'green' : j.status === 'Open' ? 'red' : 'orange'} />
                     </div>
                   </div>
-                ))
-              )}
+                  <p className="text-xs text-gray-400">Date: {j.date} • Due: {fmtDate(j.due_date)}</p>
+                </div>
+              ))}
             </div>
           )}
         </div>
@@ -643,289 +554,355 @@ const TrainDetailPanel = ({ trainId, trainData, onClose }) => {
   );
 };
 
-// ─── Date selector component ──────────────────────────────────────────────────
-const DateSelector = ({ selectedDates, onToggle, onClear }) => {
-  const [month, setMonth] = useState(() => {
-    const d = new Date();
-    return { year: d.getFullYear(), month: d.getMonth() };
-  });
-
-  const daysInMonth = new Date(month.year, month.month + 1, 0).getDate();
-  const firstDayOfWeek = new Date(month.year, month.month, 1).getDay();
-  const monthName = new Date(month.year, month.month, 1).toLocaleString('default', { month: 'long', year: 'numeric' });
-
-  const prevMonth = () => setMonth(m => {
-    const d = new Date(m.year, m.month - 1, 1);
-    return { year: d.getFullYear(), month: d.getMonth() };
-  });
-  const nextMonth = () => setMonth(m => {
-    const d = new Date(m.year, m.month + 1, 1);
-    return { year: d.getFullYear(), month: d.getMonth() };
-  });
-
-  return (
-    <div className="bg-white border rounded-2xl p-4 shadow-sm">
-      <div className="flex items-center justify-between mb-3">
-        <button onClick={prevMonth} className="p-1.5 rounded-lg hover:bg-gray-100 transition">
-          <ChevronLeft className="w-4 h-4" />
-        </button>
-        <span className="font-semibold text-sm text-gray-700">{monthName}</span>
-        <button onClick={nextMonth} className="p-1.5 rounded-lg hover:bg-gray-100 transition">
-          <ChevronRight className="w-4 h-4" />
-        </button>
-      </div>
-
-      <div className="grid grid-cols-7 mb-1">
-        {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(d => (
-          <div key={d} className="text-center text-xs text-gray-400 font-medium py-1">{d}</div>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-7 gap-0.5">
-        {Array.from({ length: firstDayOfWeek }).map((_, i) => <div key={`e-${i}`} />)}
-        {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(day => {
-          const dateStr = `${month.year}-${String(month.month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-          const isSelected = selectedDates.includes(dateStr);
-          const isToday = dateStr === today();
-          return (
-            <button
-              key={day}
-              onClick={() => onToggle(dateStr)}
-              className={`
-                text-center text-xs py-1.5 rounded-lg font-medium transition
-                ${isSelected ? 'bg-slate-800 text-white' : isToday ? 'bg-blue-50 text-blue-700 font-bold' : 'hover:bg-gray-100 text-gray-700'}
-              `}
-            >
-              {day}
-            </button>
-          );
-        })}
-      </div>
-
-      {selectedDates.length > 0 && (
-        <button
-          onClick={onClear}
-          className="mt-3 w-full text-xs text-gray-400 hover:text-gray-600 transition underline"
-        >
-          Clear all ({selectedDates.length} selected)
-        </button>
-      )}
-    </div>
-  );
-};
-
-// ─── Fleet overview stat card ─────────────────────────────────────────────────
-const StatCard = ({ label, value, sub, icon: Icon, color }) => {
-  const colors = {
-    slate: 'bg-slate-800 text-white',
-    green: 'bg-emerald-500 text-white',
-    orange: 'bg-amber-500 text-white',
-    red: 'bg-red-500 text-white',
-    blue: 'bg-blue-500 text-white',
-    purple: 'bg-violet-500 text-white',
-  };
-  return (
-    <div className={`${colors[color]} rounded-2xl p-5`}>
-      <div className="flex items-start justify-between mb-3">
-        <p className="text-xs font-medium opacity-80">{label}</p>
-        <Icon className="w-4 h-4 opacity-70" />
-      </div>
-      <p className="text-3xl font-bold leading-none">{value}</p>
-      {sub && <p className="text-xs opacity-70 mt-1.5">{sub}</p>}
-    </div>
-  );
-};
-
-// ─── Main Dashboard ───────────────────────────────────────────────────────────
-export default function TrainDashboard() {
-  const [firestoreDocs, setFirestoreDocs] = useState([]);
-  const [loadingFirestore, setLoadingFirestore] = useState(true);
-  const [selectedDates, setSelectedDates] = useState([today()]);
+// ── Main Dashboard ────────────────────────────────────────────────────────────
+export default function Dashboard() {
+  const [authReady, setAuthReady] = useState(false);   // true once Firebase Auth session is restored
+  const [currentUser, setCurrentUser] = useState(null);
+  const [masterData, setMasterData] = useState({});
+  const [dailyDocs, setDailyDocs] = useState([]);
+  const [selectedDates, setSelectedDates] = useState([todayStr()]);
   const [selectedTrain, setSelectedTrain] = useState(null);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [search, setSearch] = useState('');
   const [filterDepot, setFilterDepot] = useState('All');
   const [filterFitness, setFilterFitness] = useState('All');
+  const [dismissedAlertTypes, setDismissedAlertTypes] = useState([]);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [loadingMaster, setLoadingMaster] = useState(true);
+  const [loadingDaily, setLoadingDaily] = useState(false);
+  const [nowTime, setNowTime] = useState(() => nowMin());
 
-  // Fetch approved docs from Firestore
+  const masterUnsubRef = useRef(null);
+
+  // ── Step 1: wait for auth session to restore ────────────────────────────────
+  // This MUST run before any Firestore query. Firebase Auth restores the
+  // persisted session asynchronously — firing onSnapshot before this completes
+  // means request.auth is null on the server → "Missing or insufficient permissions".
   useEffect(() => {
-    const q = query(
-      collection(db, 'trainInduction'),
-      where('status', '==', 'approved')
-    );
-
-    const unsub = onSnapshot(q, (snap) => {
-      const docs = [];
-      snap.forEach(doc => docs.push({ id: doc.id, ...doc.data() }));
-      setFirestoreDocs(docs);
-      setLoadingFirestore(false);
-    }, () => setLoadingFirestore(false));
-
-    return () => unsub();
+    waitForAuthReady().then((user) => {
+      setCurrentUser(user);
+      setAuthReady(true);
+    });
   }, []);
 
-  // Toggle a date in selected list
-  const toggleDate = (dateStr) => {
-    setSelectedDates(prev =>
-      prev.includes(dateStr) ? prev.filter(d => d !== dateStr) : [...prev, dateStr].sort()
-    );
-  };
+  // ── Live clock — refreshes every 60 s so exposure countdown ticks down ───────
+  useEffect(() => {
+    const id = setInterval(() => setNowTime(nowMin()), 60_000);
+    return () => clearInterval(id);
+  }, []);
 
-  // Build unified docs: Firestore real data + seed data for selected dates with no Firestore data
-  const allDocs = useMemo(() => {
-    const firestoreDates = new Set(firestoreDocs.map(d => d.date));
-    const seedDocs = [];
-    selectedDates.forEach(d => {
-      if (!firestoreDates.has(d)) {
-        seedDocs.push(...generateSeedData(d));
+  // ── Step 2: subscribe to master data — only after auth is confirmed ─────────
+  useEffect(() => {
+    if (!authReady || !currentUser || !db) {
+      setLoadingMaster(false);
+      return;
+    }
+
+    if (masterUnsubRef.current) {
+      masterUnsubRef.current();
+      masterUnsubRef.current = null;
+    }
+
+    let active = true;
+
+    const unsub = onSnapshot(
+      collection(db, 'trainMasterData'),
+      { includeMetadataChanges: false },
+      (snap) => {
+        if (!active) return;
+        const map = {};
+        snap.forEach(d => { map[d.id] = d.data(); });
+        setMasterData(map);
+        setLoadingMaster(false);
+      },
+      (err) => {
+        if (!active) return;
+        console.error('[masterData] onSnapshot error:', err);
+        setLoadingMaster(false);
+      }
+    );
+
+    masterUnsubRef.current = unsub;
+
+    return () => {
+      active = false;
+      if (masterUnsubRef.current) {
+        masterUnsubRef.current();
+        masterUnsubRef.current = null;
+      }
+    };
+  }, [authReady, currentUser]);
+
+  // ── Step 3: fetch daily data — only after auth is confirmed ─────────────────
+  useEffect(() => {
+    if (!authReady || !currentUser || !db || !selectedDates.length) {
+      setDailyDocs([]);
+      return;
+    }
+
+    setLoadingDaily(true);
+    let cancelled = false;
+
+    const chunks = [];
+    for (let i = 0; i < selectedDates.length; i += 10) {
+      chunks.push(selectedDates.slice(i, i + 10));
+    }
+
+    Promise.all(
+      chunks.map(chunk =>
+        getDocs(query(collection(db, 'trainDailyData'), where('date', 'in', chunk)))
+          .then(snap => {
+            const docs = [];
+            snap.forEach(d => docs.push({ id: d.id, ...d.data() }));
+            return docs;
+          })
+          .catch((err) => {
+            console.error('[dailyData] getDocs error:', err);
+            return [];
+          })
+      )
+    ).then(results => {
+      if (!cancelled) {
+        setDailyDocs(results.flat());
+        setLoadingDaily(false);
       }
     });
-    const relevant = firestoreDocs.filter(d => selectedDates.includes(d.date));
-    return [...relevant, ...seedDocs];
-  }, [firestoreDocs, selectedDates]);
 
-  // Build per-train map
-  const trainMap = useMemo(() => buildTrainMap(allDocs, selectedDates), [allDocs, selectedDates]);
+    return () => { cancelled = true; };
+  }, [authReady, currentUser, selectedDates]);
 
-  // Fleet stats
-  const fleetStats = useMemo(() => {
-    const fitCount = TRAIN_IDS.filter(id => trainMap[id]?.fitness?.status === 'Fit for Service').length;
-    const openJobs = TRAIN_IDS.reduce((acc, id) => acc + trainMap[id]?.jobs.filter(j => j.status === 'Open').length, 0);
-    const activeBranding = TRAIN_IDS.filter(id => trainMap[id]?.branding.length > 0).length;
-    const avgMileage = TRAIN_IDS.reduce((acc, id) => {
-      const m = trainMap[id]?.mileage;
-      return acc + (m?.length > 0 ? m[m.length - 1].current_mileage_km : 0);
-    }, 0) / 30;
-    return { fitCount, openJobs, activeBranding, avgMileage: Math.round(avgMileage) };
-  }, [trainMap]);
+  const toggleDate = (d) =>
+    setSelectedDates(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d].sort());
 
-  // Filtered train list
-  const filteredTrains = useMemo(() => {
-    return TRAIN_IDS.filter(id => {
-      if (searchQuery && !id.toLowerCase().includes(searchQuery.toLowerCase())) return false;
-      if (filterDepot !== 'All' && trainMap[id]?.stabling?.yard !== filterDepot) return false;
-      if (filterFitness === 'Fit' && trainMap[id]?.fitness?.status !== 'Fit for Service') return false;
-      if (filterFitness === 'Check' && trainMap[id]?.fitness?.status !== 'Requires Check') return false;
-      return true;
+  // ── Build per-train data view — REAL DATA ONLY, no seed/fake fallbacks ────────
+  const trainView = useMemo(() => {
+    const latestDate = selectedDates[selectedDates.length - 1] || todayStr();
+
+    return TRAIN_IDS.map(tid => {
+      // Master data: real Firestore record only, or null if not yet submitted
+      const master = masterData[tid] || null;
+
+      // Daily data: only real Firestore records for this train across selected dates
+      const allDaily = dailyDocs
+        .filter(d => d.train_id === tid)
+        .sort((a, b) => a.date.localeCompare(b.date));
+
+      const latestDaily = allDaily[allDaily.length - 1] || null;
+
+      const fitness = master?.fitness_certificates || null;
+      const isFit = fitness ? isFitnessValidOn(fitness, latestDate) : false;
+
+      const activeBranding = (master?.branding_priorities || []).filter(b =>
+        selectedDates.some(d => isBrandingActiveOn(b, d))
+      );
+
+      return {
+        trainId: tid,
+        master,
+        allDaily,
+        latestDaily,
+        fitness,
+        isFit,
+        activeBranding,
+        hasData: allDaily.length > 0,          // false means no daily data uploaded yet
+        hasMaster: master !== null,             // false means no fitness/branding submitted yet
+        latestMileage: latestDaily?.mileage?.current_mileage_km ?? null,
+        depot: latestDaily?.stabling_geometry?.yard ?? null,
+        openJobs: allDaily.flatMap(d => d.job_card_status || []).filter(j => j.status === 'Open').length,
+      };
     });
-  }, [searchQuery, filterDepot, filterFitness, trainMap]);
+  }, [masterData, dailyDocs, selectedDates]);
 
-  // Fleet mileage chart data
-  const fleetChartData = useMemo(() => {
-    return selectedDates.map(d => ({
-      date: d.slice(5),
-      avgMileage: Math.round(
-        TRAIN_IDS.reduce((acc, id) => {
-          const m = trainMap[id]?.mileage.find(x => x.date === d);
-          return acc + (m?.current_mileage_km || 0);
-        }, 0) / 30
-      ),
+  // ── Build all trips for live exposure countdown ───────────────────────────
+  const allTrips = useMemo(() => {
+    const latestDate = selectedDates[selectedDates.length - 1] || todayStr();
+    const fleet = TRAIN_IDS.map(tid => ({
+      train_id: tid,
+      isFit: isFitnessValidOn(masterData[tid]?.fitness_certificates || null, latestDate),
     }));
-  }, [selectedDates, trainMap]);
+    return buildAllTrips(fleet);
+  }, [masterData, selectedDates]);
 
-  const selectedTrain_data = selectedTrain ? trainMap[selectedTrain] : null;
+  // ── Fleet-wide expiry alerts (shown at top of dashboard) ─────────────────────
+  const fleetAlerts = useMemo(() => {
+    if (dismissedAlertTypes.includes('all')) return [];
+    const today = todayStr();
+    const alerts = [];
+    trainView.forEach(({ trainId, master }) => {
+      if (!master) return; // no data uploaded for this train yet — skip
+      if (master.fitness_certificates) {
+        alerts.push(...checkCertAlerts(master.fitness_certificates, today, trainId));
+      }
+      if (master.branding_priorities?.length) {
+        alerts.push(...checkBrandingAlerts(master.branding_priorities, today, trainId));
+      }
+    });
+    return alerts.filter(a => !dismissedAlertTypes.includes(a.type));
+  }, [trainView, dismissedAlertTypes]);
+
+  // ── Filtered train list ───────────────────────────────────────────────────────
+  const filtered = useMemo(() => trainView.filter(t => {
+    if (search && !t.trainId.toLowerCase().includes(search.toLowerCase())) return false;
+    if (filterDepot !== 'All' && t.depot !== filterDepot) return false;
+    if (filterFitness === 'Fit' && !t.isFit) return false;
+    if (filterFitness === 'Check' && t.isFit) return false;
+    return true;
+  }), [trainView, search, filterDepot, filterFitness]);
+
+  // ── Fleet mileage chart — only trains that have real data ────────────────────
+  const fleetChart = useMemo(() => selectedDates.map(d => {
+    const trainsWithData = trainView.filter(t => {
+      const dd = t.allDaily.find(x => x.date === d);
+      return dd?.mileage?.current_mileage_km != null;
+    });
+    const avg = trainsWithData.length > 0
+      ? Math.round(trainsWithData.reduce((acc, t) => {
+        const dd = t.allDaily.find(x => x.date === d);
+        return acc + dd.mileage.current_mileage_km;
+      }, 0) / trainsWithData.length)
+      : null;
+    return { date: d.slice(5), avg, count: trainsWithData.length };
+  }), [trainView, selectedDates]);
+
+  const fitCount = trainView.filter(t => t.isFit).length;
+  const totalOpenJobs = trainView.reduce((a, t) => a + t.openJobs, 0);
+  const activeBrandingCount = trainView.filter(t => t.activeBranding.length > 0).length;
+
+  const selectedTrainData = selectedTrain ? trainView.find(t => t.trainId === selectedTrain) : null;
+
+  // Block render until Firebase Auth session is restored.
+  // Without this gate: fleetAlerts runs while masterData is still {},
+  // trainView entries have master=null → "Cannot read properties of null".
+  // Firestore queries also fire before auth token is attached → permissions error.
+  if (!authReady) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-10 h-10 border-4 border-slate-800 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-500 text-sm">Connecting...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!currentUser) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <p className="text-gray-500 text-sm">Please sign in to view the dashboard.</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50 font-sans">
+    <div className="min-h-screen bg-gray-50">
       {/* Top bar */}
-      <div className="bg-slate-800 text-white px-6 py-4 flex items-center justify-between shadow-lg">
+      <div className="bg-slate-800 text-white px-6 py-4 flex items-center justify-between shadow-lg sticky top-0 z-40">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
             <Train className="w-4 h-4" />
           </div>
           <div>
-            <h1 className="font-bold text-lg leading-none">KMRL Train Operations</h1>
-            <p className="text-slate-300 text-xs">Fleet Management Dashboard — {TRAIN_IDS.length} trains</p>
+            <h1 className="font-bold text-lg leading-none">KMRL Fleet Dashboard</h1>
+            <p className="text-slate-400 text-xs">KMRL-1 to KMRL-30 • {selectedDates.length > 0 ? selectedDates.join(', ') : 'No date selected'}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-slate-400">
-            {selectedDates.length === 0 ? 'No date selected' : selectedDates.length === 1 ? selectedDates[0] : `${selectedDates.length} dates selected`}
-          </span>
-          <button
-            onClick={() => setSidebarOpen(o => !o)}
-            className="ml-2 px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-xs transition flex items-center gap-1.5"
-          >
+          {fleetAlerts.length > 0 && (
+            <div className="flex items-center gap-1 bg-red-500/20 border border-red-400/40 px-3 py-1.5 rounded-full">
+              <Bell className="w-3.5 h-3.5 text-red-300" />
+              <span className="text-red-200 text-xs font-bold">{fleetAlerts.length} Alert{fleetAlerts.length > 1 ? 's' : ''}</span>
+            </div>
+          )}
+          <button onClick={() => setSidebarOpen(o => !o)}
+            className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-xs flex items-center gap-1.5 transition">
             <Calendar className="w-3.5 h-3.5" />
-            {sidebarOpen ? 'Hide' : 'Show'} Calendar
+            {sidebarOpen ? 'Hide' : 'Calendar'}
           </button>
         </div>
       </div>
 
       <div className="flex h-[calc(100vh-64px)] overflow-hidden">
-        {/* Sidebar: date selector + filters */}
+        {/* Sidebar */}
         {sidebarOpen && (
-          <div className="w-64 flex-shrink-0 overflow-y-auto border-r bg-white p-4 space-y-4">
-            <DateSelector
-              selectedDates={selectedDates}
-              onToggle={toggleDate}
-              onClear={() => setSelectedDates([])}
-            />
+          <div className="w-64 flex-shrink-0 border-r bg-white overflow-y-auto p-4 space-y-4">
+            <DatePicker selectedDates={selectedDates} onToggle={toggleDate} onClear={() => setSelectedDates([])} />
 
-            {/* Filters */}
             <div className="bg-white border rounded-2xl p-4">
-              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Filters</h3>
-
-              <div className="mb-3">
-                <label className="text-xs text-gray-400 mb-1 block">Search Train</label>
-                <input
-                  type="text"
-                  placeholder="KMRL-..."
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
-                />
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                <Filter className="w-3.5 h-3.5" /> Filters
+              </h3>
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs text-gray-400 mb-1 block">Search</label>
+                  <input value={search} onChange={e => setSearch(e.target.value)} placeholder="KMRL-..."
+                    className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-400 mb-1 block">Depot</label>
+                  <select value={filterDepot} onChange={e => setFilterDepot(e.target.value)}
+                    className="w-full border rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-slate-300">
+                    <option>All</option>
+                    <option value="Muttom Depot">Muttom</option>
+                    <option value="Kalamassery Depot">Kalamassery</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs text-gray-400 mb-1 block">Fitness</label>
+                  <select value={filterFitness} onChange={e => setFilterFitness(e.target.value)}
+                    className="w-full border rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-slate-300">
+                    <option value="All">All</option>
+                    <option value="Fit">Fit for Service</option>
+                    <option value="Check">Requires Check</option>
+                  </select>
+                </div>
               </div>
+            </div>
 
-              <div className="mb-3">
-                <label className="text-xs text-gray-400 mb-1 block">Depot</label>
-                <select
-                  value={filterDepot}
-                  onChange={e => setFilterDepot(e.target.value)}
-                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300 bg-white"
-                >
-                  <option value="All">All Depots</option>
-                  <option value="Muttom Depot">Muttom Depot</option>
-                  <option value="Kalamassery Depot">Kalamassery Depot</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="text-xs text-gray-400 mb-1 block">Fitness Status</label>
-                <select
-                  value={filterFitness}
-                  onChange={e => setFilterFitness(e.target.value)}
-                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300 bg-white"
-                >
-                  <option value="All">All</option>
-                  <option value="Fit">Fit for Service</option>
-                  <option value="Check">Requires Check</option>
-                </select>
-              </div>
+            {/* Legend */}
+            <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 text-xs text-blue-800 space-y-1.5">
+              <p className="font-bold mb-2">ℹ️ Data Architecture</p>
+              <p><strong>Master</strong> (fitness, branding): overrideable — new submission replaces previous</p>
+              <p><strong>Daily</strong> (stabling, mileage, cleaning, jobs): per-date — each date stored independently</p>
             </div>
           </div>
         )}
 
-        {/* Main content */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {/* Fleet KPI cards */}
+        {/* Main */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+          {/* Alerts */}
+          <AlertBanner
+            alerts={fleetAlerts}
+            onDismiss={(type) => setDismissedAlertTypes(prev => [...prev, type])}
+          />
+
+          {/* KPIs */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard label="Total Fleet" value={30} sub="KMRL-1 to KMRL-30" icon={Train} color="slate" />
-            <StatCard label="Fit for Service" value={fleetStats.fitCount} sub={`${30 - fleetStats.fitCount} require check`} icon={CheckCircle} color="green" />
-            <StatCard label="Open Job Cards" value={fleetStats.openJobs} sub="Across selected dates" icon={AlertTriangle} color="orange" />
-            <StatCard label="Active Branding" value={fleetStats.activeBranding} sub="Trains with campaigns" icon={Zap} color="purple" />
+            {[
+              { label: 'Total Fleet', value: 30, sub: 'KMRL-1 to KMRL-30', bg: 'bg-slate-800', icon: Train },
+              { label: 'Fit for Service', value: fitCount, sub: `${30 - fitCount} require check`, bg: 'bg-emerald-600', icon: CheckCircle },
+              { label: 'Open Job Cards', value: totalOpenJobs, sub: 'Across selected dates', bg: 'bg-amber-500', icon: AlertTriangle },
+              { label: 'Active Branding', value: activeBrandingCount, sub: 'Trains with campaigns', bg: 'bg-violet-600', icon: Zap },
+            ].map(({ label, value, sub, bg, icon: Icon }) => (
+              <div key={label} className={`${bg} text-white rounded-2xl p-5`}>
+                <div className="flex items-start justify-between mb-3">
+                  <p className="text-xs font-medium opacity-80">{label}</p>
+                  <Icon className="w-4 h-4 opacity-70" />
+                </div>
+                <p className="text-3xl font-bold leading-none">{value}</p>
+                <p className="text-xs opacity-70 mt-1.5">{sub}</p>
+              </div>
+            ))}
           </div>
 
-          {/* Fleet mileage chart */}
+          {/* Fleet trend */}
           {selectedDates.length > 1 && (
             <div className="bg-white border rounded-2xl p-5">
               <h3 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-1.5">
-                <BarChart2 className="w-4 h-4" /> Fleet Average Mileage Trend
+                <BarChart2 className="w-4 h-4" /> Fleet Average Mileage
               </h3>
-              <ResponsiveContainer width="100%" height={150}>
-                <AreaChart data={fleetChartData}>
+              <ResponsiveContainer width="100%" height={140}>
+                <AreaChart data={fleetChart}>
                   <defs>
-                    <linearGradient id="fleetGrad" x1="0" y1="0" x2="0" y2="1">
+                    <linearGradient id="fg" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#1e293b" stopOpacity={0.1} />
                       <stop offset="95%" stopColor="#1e293b" stopOpacity={0} />
                     </linearGradient>
@@ -933,8 +910,8 @@ export default function TrainDashboard() {
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                   <XAxis dataKey="date" tick={{ fontSize: 11 }} />
                   <YAxis tick={{ fontSize: 11 }} tickFormatter={v => `${Math.round(v / 1000)}k`} />
-                  <Tooltip formatter={v => [`${v.toLocaleString()} km`, 'Avg Mileage']} />
-                  <Area type="monotone" dataKey="avgMileage" stroke="#1e293b" strokeWidth={2} fill="url(#fleetGrad)" />
+                  <Tooltip formatter={v => [`${v.toLocaleString()} km`, 'Avg']} />
+                  <Area type="monotone" dataKey="avg" stroke="#1e293b" strokeWidth={2} fill="url(#fg)" />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -942,66 +919,74 @@ export default function TrainDashboard() {
 
           {/* Train grid */}
           <div>
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="font-semibold text-gray-800">
-                Train Fleet <span className="text-gray-400 font-normal text-sm">({filteredTrains.length} shown)</span>
-              </h2>
-            </div>
+            <h2 className="font-semibold text-gray-800 mb-3">
+              Train Fleet <span className="text-gray-400 font-normal text-sm">({filtered.length})</span>
+              {loadingDaily && <span className="ml-2 text-xs text-blue-500">Loading...</span>}
+            </h2>
 
             {selectedDates.length === 0 ? (
               <div className="bg-white border rounded-2xl p-12 text-center">
                 <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                <p className="text-gray-500 font-medium">Select one or more dates from the calendar</p>
-                <p className="text-gray-400 text-sm mt-1">to view train operations data</p>
+                <p className="text-gray-500 font-medium">Select one or more dates</p>
+                <p className="text-gray-400 text-sm mt-1">to view daily operations data</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                {filteredTrains.map(trainId => {
-                  const data = trainMap[trainId];
-                  const fitness = data.fitness;
-                  const latestMileage = data.mileage[data.mileage.length - 1];
-                  const openJobs = data.jobs.filter(j => j.status === 'Open').length;
-                  const hasBranding = data.branding.length > 0;
-                  const isFit = fitness?.status === 'Fit for Service';
+                {filtered.map(({ trainId, fitness, isFit, activeBranding, latestMileage, depot, openJobs, master, allDaily, hasData, hasMaster }) => {
+                  const certA = fitness ? checkCertAlerts(fitness, todayStr(), trainId) : [];
+                  const hasAlert = certA.length > 0 || checkBrandingAlerts(master?.branding_priorities || [], todayStr(), trainId).length > 0;
 
                   return (
-                    <button
-                      key={trainId}
-                      onClick={() => setSelectedTrain(trainId)}
-                      className="bg-white border rounded-2xl p-4 text-left hover:shadow-md hover:border-slate-300 transition-all group"
-                    >
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-2">
-                          <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${isFit ? 'bg-emerald-100' : 'bg-red-100'}`}>
-                            <Train className={`w-3.5 h-3.5 ${isFit ? 'text-emerald-600' : 'text-red-500'}`} />
+                    <button key={trainId} onClick={() => setSelectedTrain(trainId)}
+                      className={`bg-white border rounded-2xl p-4 text-left hover:shadow-md transition-all group relative
+                        ${hasAlert ? 'border-red-200 ring-1 ring-red-100' : 'hover:border-slate-300'}
+                        ${!hasData && !hasMaster ? 'opacity-60' : ''}`}>
+
+                      {hasAlert && (
+                        <span className="absolute top-3 right-3 w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse" />
+                      )}
+
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className={`w-7 h-7 rounded-lg flex items-center justify-center
+                          ${!hasMaster ? 'bg-gray-100' : isFit ? 'bg-emerald-100' : 'bg-red-100'}`}>
+                          <Train className={`w-3.5 h-3.5
+                            ${!hasMaster ? 'text-gray-400' : isFit ? 'text-emerald-600' : 'text-red-500'}`} />
+                        </div>
+                        <span className="font-bold text-sm text-slate-800">{trainId}</span>
+                        <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-gray-500 transition ml-auto" />
+                      </div>
+
+                      {!hasData && !hasMaster ? (
+                        // No data at all for this train
+                        <p className="text-xs text-gray-400 italic py-1">No data uploaded yet</p>
+                      ) : (
+                        <div className="space-y-1.5 text-xs text-gray-500">
+                          <div className="flex justify-between">
+                            <span>Mileage</span>
+                            <span className={`font-medium ${latestMileage != null ? 'text-gray-700' : 'text-gray-300 italic'}`}>
+                              {latestMileage != null ? `${latestMileage.toLocaleString()} km` : 'Not uploaded'}
+                            </span>
                           </div>
-                          <span className="font-bold text-sm text-slate-800">{trainId}</span>
+                          <div className="flex justify-between">
+                            <span>Depot</span>
+                            <span className={`font-medium truncate max-w-[110px] ${depot ? 'text-gray-700' : 'text-gray-300 italic'}`}>
+                              {depot ? depot.replace(' Depot', '') : 'Not uploaded'}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span>Fitness</span>
+                            {hasMaster
+                              ? <Badge label={isFit ? 'Fit' : 'Check'} color={isFit ? 'green' : 'red'} />
+                              : <span className="text-gray-300 italic text-xs">Not uploaded</span>
+                            }
+                          </div>
                         </div>
-                        <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-gray-500 transition" />
-                      </div>
+                      )}
 
-                      <div className="space-y-1.5 text-xs text-gray-500">
-                        <div className="flex justify-between">
-                          <span>Mileage</span>
-                          <span className="font-medium text-gray-700">
-                            {latestMileage ? `${latestMileage.current_mileage_km.toLocaleString()} km` : '—'}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Depot</span>
-                          <span className="font-medium text-gray-700 truncate max-w-[100px]">{data.stabling?.yard?.replace(' Depot', '') || '—'}</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span>Fitness</span>
-                          <Badge label={isFit ? 'Fit' : 'Check'} color={isFit ? 'green' : 'red'} />
-                        </div>
-                      </div>
-
-                      {/* Indicators row */}
-                      <div className="flex items-center gap-1.5 mt-3 pt-3 border-t">
-                        {hasBranding && <Badge label="Branding" color="purple" />}
+                      <div className="flex flex-wrap gap-1 mt-3 pt-2.5 border-t">
+                        {activeBranding.length > 0 && <Badge label="Branding" color="purple" />}
                         {openJobs > 0 && <Badge label={`${openJobs} Job${openJobs > 1 ? 's' : ''}`} color="orange" />}
-                        {data.cleaning.length > 0 && <Badge label="Clean" color="blue" />}
+                        {!hasData && hasMaster && <Badge label="Master only" color="blue" />}
                       </div>
                     </button>
                   );
@@ -1012,11 +997,15 @@ export default function TrainDashboard() {
         </div>
       </div>
 
-      {/* Train detail panel */}
-      {selectedTrain && selectedTrain_data && (
-        <TrainDetailPanel
+      {/* Train detail */}
+      {selectedTrain && selectedTrainData && (
+        <TrainDetail
           trainId={selectedTrain}
-          trainData={selectedTrain_data}
+          masterData={selectedTrainData.master}
+          dailyData={selectedTrainData.allDaily}
+          selectedDates={selectedDates}
+          allTrips={allTrips}
+          nowTime={nowTime}
           onClose={() => setSelectedTrain(null)}
         />
       )}

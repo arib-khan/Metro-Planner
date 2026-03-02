@@ -1,43 +1,49 @@
-//screens\InductionForm.js
+// screens/InductionForm.js
 import React, { useState } from 'react';
-import {
-  View,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
-  Alert,
-} from 'react-native';
+import { View, ScrollView, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { Button, Text, Snackbar } from 'react-native-paper';
 import { Formik } from 'formik';
 import FormSection from '../components/FormSection';
 import { validationSchema } from '../utils/validationSchema';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '../firebaseConfig';
 import { useAuth } from '../utils/authHelpers';
+import {
+  saveMasterData,
+  saveDailyData,
+  checkCertAlerts,
+  checkBrandingAlerts,
+} from '../utils/trainDataService';
 
-// ── Hardcoded fleet list for picker ──────────────────────────────────────────
+// ── Fleet ─────────────────────────────────────────────────────────────────────
 export const TRAIN_IDS = Array.from({ length: 30 }, (_, i) => `KMRL-${i + 1}`);
+const todayStr = () => new Date().toISOString().split('T')[0];
 
+// ── Initial values ────────────────────────────────────────────────────────────
 const initialValues = {
   trainId: '',
+  entryDate: todayStr(),          // User can change to any past/future date
 
-  // Branding
-  brandingPriorityLevel: '3',
+  // Master data flags — only sent to trainMasterData if toggled ON
+  updateFitness: false,
+  fitnessStatus: 'Fit for Service',
+  rollingStockValidity: '',
+  signallingValidity: '',
+  telecomValidity: '',
+
+  updateBranding: false,
   brandingType: 'None',
+  brandingPriorityLevel: '2',
+  brandingExposureMinutes: '3600',
   brandingValidFrom: '',
   brandingValidTo: '',
-  brandingExposureMinutes: '0',
   brandingApprovedBy: 'Marketing Dept',
-  brandingRemarks: '',
 
-  // Cleaning
+  // Daily ops data — always sent to trainDailyData for the chosen date
   cleaningType: 'Daily Clean',
   cleaningSlotStart: '23:00',
   cleaningSlotEnd: '23:45',
   cleaningAssignedTeam: 'Team A',
   cleaningStatus: 'Scheduled',
 
-  // Stabling
   yard: 'Muttom Depot',
   trackNo: '1',
   berth: 'A1',
@@ -45,115 +51,70 @@ const initialValues = {
   distanceFromBuffer: '4.5',
   stablingRemarks: '',
 
-  // Fitness — store validity dates (not just a status flag)
-  rollingStockValidity: '',
-  signallingValidity: '',
-  telecomValidity: '',
-  fitnessStatus: 'Fit for Service',
+  currentMileageKm: '',
 
-  // Job Card
   jobId: '',
   jobTask: '',
   jobStatus: 'Open',
   jobAssignedTeam: 'Maintenance Team',
   jobDueDate: '',
-  jobCompletedOn: '',
   jobPriority: 'Medium',
-
-  // Mileage — new format only needs current_mileage_km
-  currentMileageKm: '0',
 };
 
-// ── Transform form values → exact new JSON format ─────────────────────────────
-const transformToExactJSONFormat = (formData, user) => {
-  const currentDate = new Date().toISOString().split('T')[0];
+// ── Build Firestore payloads ───────────────────────────────────────────────────
+const buildPayloads = (v) => {
+  const date = v.entryDate || todayStr();
 
-  const result = {
-    date: currentDate,
-    branding_priorities: [],
-    cleaning_slots: [],
-    stabling_geometry: [],
-    fitness_certificates: [],
-    job_card_status: [],
-    mileage: [],
+  const masterPayload = {
+    fitness_certificates: v.updateFitness ? {
+      rolling_stock_validity: v.rollingStockValidity,
+      signalling_validity: v.signallingValidity,
+      telecom_validity: v.telecomValidity,
+      status: v.fitnessStatus,
+    } : undefined,
+    branding_priorities: v.updateBranding
+      ? (v.brandingType !== 'None' ? [{
+        branding_type: v.brandingType,
+        priority_level: parseInt(v.brandingPriorityLevel) || 2,
+        exposure_minutes: parseInt(v.brandingExposureMinutes) || 0,
+        valid_from: v.brandingValidFrom || date,
+        valid_to: v.brandingValidTo || date,
+        approved_by: v.brandingApprovedBy,
+      }] : [])
+      : undefined,
   };
 
-  // Branding Priorities — only if not 'None'
-  if (formData.brandingType && formData.brandingType !== 'None') {
-    result.branding_priorities.push({
-      train_id: formData.trainId,
-      exposure_minutes: parseInt(formData.brandingExposureMinutes) || 0,
-      priority_level: parseInt(formData.brandingPriorityLevel) || 3,
-      branding_type: formData.brandingType,
-      valid_from: formData.brandingValidFrom || currentDate,
-      valid_to: formData.brandingValidTo || currentDate,
-      approved_by: formData.brandingApprovedBy || 'Marketing Dept',
-    });
-  }
+  const dailyPayload = {
+    date,
+    cleaning_slots: [{
+      cleaning_type: v.cleaningType,
+      slot_start: `${date}T${v.cleaningSlotStart || '23:00'}`,
+      slot_end: `${date}T${v.cleaningSlotEnd || '23:45'}`,
+      assigned_team: v.cleaningAssignedTeam,
+      status: v.cleaningStatus,
+    }],
+    stabling_geometry: {
+      yard: v.yard,
+      track_no: parseInt(v.trackNo) || 1,
+      berth: v.berth,
+      orientation: v.orientation,
+      distance_from_buffer_m: parseFloat(v.distanceFromBuffer) || 4.5,
+      remarks: v.stablingRemarks,
+    },
+    mileage: v.currentMileageKm
+      ? { current_mileage_km: parseInt(v.currentMileageKm) }
+      : null,
+    job_card_status: v.jobTask || v.jobId ? [{
+      job_id: v.jobId || `JC-${Math.floor(Math.random() * 9000) + 1000}`,
+      task: v.jobTask,
+      status: v.jobStatus,
+      assigned_team: v.jobAssignedTeam,
+      due_date: v.jobDueDate || date,
+      priority: v.jobPriority,
+    }] : [],
+  };
 
-  // Cleaning Slots
-  const slotDate = currentDate;
-  result.cleaning_slots.push({
-    train_id: formData.trainId,
-    cleaning_type: formData.cleaningType || 'Daily Clean',
-    slot_start: `${slotDate}T${formData.cleaningSlotStart || '23:00'}`,
-    slot_end: `${slotDate}T${formData.cleaningSlotEnd || '23:45'}`,
-    assigned_team: formData.cleaningAssignedTeam || 'Team A',
-    status: formData.cleaningStatus || 'Scheduled',
-  });
-
-  // Stabling Geometry
-  result.stabling_geometry.push({
-    train_id: formData.trainId,
-    yard: formData.yard || 'Muttom Depot',
-    track_no: parseInt(formData.trackNo) || 1,
-    berth: formData.berth || 'A1',
-    orientation: formData.orientation || 'UP',
-    distance_from_buffer_m: parseFloat(formData.distanceFromBuffer) || 4.5,
-    remarks: formData.stablingRemarks || '',
-  });
-
-  // Fitness Certificates — store validity dates for each cert type
-  // These will remain visible for any view date within the validity window
-  result.fitness_certificates.push({
-    train_id: formData.trainId,
-    rolling_stock_validity: formData.rollingStockValidity || '',
-    signalling_validity: formData.signallingValidity || '',
-    telecom_validity: formData.telecomValidity || '',
-    status: formData.fitnessStatus || 'Fit for Service',
-  });
-
-  // Job Card Status — only if task or ID provided
-  if (formData.jobTask || formData.jobId) {
-    const jobCard = {
-      train_id: formData.trainId,
-      job_id: formData.jobId || `JC-${Math.floor(Math.random() * 9000) + 1000}`,
-      task: formData.jobTask || '',
-      status: formData.jobStatus || 'Open',
-      assigned_team: formData.jobAssignedTeam || 'Maintenance Team',
-      due_date: formData.jobDueDate || currentDate,
-      priority: formData.jobPriority || 'Medium',
-    };
-    if (formData.jobCompletedOn) jobCard.completed_on = formData.jobCompletedOn;
-    result.job_card_status.push(jobCard);
-  }
-
-  // Mileage — new format: only current_mileage_km
-  result.mileage.push({
-    train_id: formData.trainId,
-    current_mileage_km: parseInt(formData.currentMileageKm) || 0,
-  });
-
-  // Metadata
-  result.userId = user.uid;
-  result.userName = user.displayName || user.email;
-  result.userEmail = user.email;
-  result.timestamp = serverTimestamp();
-  result.status = 'submitted';
-  result.syncStatus = 'synced';
-  result.source = 'manual_entry';
-
-  return result;
+  return { masterPayload, dailyPayload };
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -161,320 +122,215 @@ const transformToExactJSONFormat = (formData, user) => {
 export default function InductionForm({ navigation }) {
   const { user } = useAuth();
   const [snackbarVisible, setSnackbarVisible] = useState(false);
-  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [snackbarMsg, setSnackbarMsg] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (values, { resetForm }) => {
-    setLoading(true);
-    try {
-      const jsonData = transformToExactJSONFormat(values, user);
-      console.log('Submitting data:', JSON.stringify(jsonData, null, 2));
+    const date = values.entryDate || todayStr();
+    const meta = { userId: user.uid, userName: user.displayName || user.email, userEmail: user.email };
 
-      const docRef = await addDoc(collection(db, 'trainInduction'), jsonData);
-      console.log('✅ Successfully saved with ID:', docRef.id);
-
-      setSnackbarMessage('Form submitted successfully!');
-      setSnackbarVisible(true);
-      Alert.alert('Success', 'Train induction form submitted successfully!');
-      resetForm();
-
-      setTimeout(() => {
-        navigation.navigate('Success', {
-          documentId: docRef.id,
-          isOffline: false,
-        });
-      }, 1500);
-    } catch (error) {
-      console.error('Submission error:', error);
-      Alert.alert('Error', 'Failed to submit form: ' + error.message);
-    } finally {
-      setLoading(false);
+    // ── Expiry checks before saving ────────────────────────────────────────────
+    const alerts = [];
+    if (values.updateFitness) {
+      alerts.push(...checkCertAlerts({
+        rolling_stock_validity: values.rollingStockValidity,
+        signalling_validity: values.signallingValidity,
+        telecom_validity: values.telecomValidity,
+      }, date, values.trainId));
     }
+    if (values.updateBranding && values.brandingType !== 'None') {
+      alerts.push(...checkBrandingAlerts(
+        [{ branding_type: values.brandingType, valid_to: values.brandingValidTo }],
+        date, values.trainId
+      ));
+    }
+
+    const expired = alerts.filter(a => a.type === 'expired');
+    const warnings = alerts.filter(a => a.type === 'warning');
+
+    // ── Perform the actual save ────────────────────────────────────────────────
+    const doSave = async () => {
+      setLoading(true);
+      try {
+        const { masterPayload, dailyPayload } = buildPayloads(values);
+        const saves = [];
+
+        if (values.updateFitness || values.updateBranding) {
+          saves.push(saveMasterData({ trainId: values.trainId, ...masterPayload, ...meta }));
+        }
+        saves.push(saveDailyData({ trainId: values.trainId, ...dailyPayload, ...meta }));
+
+        const results = await Promise.all(saves);
+        const failed = results.filter(r => !r.success);
+
+        if (failed.length) {
+          Alert.alert('Partial Error', failed.map(f => f.error).join('\n'));
+        } else {
+          setSnackbarMsg(`✅ Saved for ${values.trainId} on ${date}`);
+          setSnackbarVisible(true);
+          resetForm({ values: { ...initialValues, entryDate: date } });
+          setTimeout(() => navigation.navigate('Home'), 1500);
+        }
+      } catch (err) {
+        Alert.alert('Error', err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    // Show expired alert (blocking) → save anyway option
+    if (expired.length > 0) {
+      Alert.alert(
+        '🚨 Expired Data',
+        expired.map(a => `• ${a.message}`).join('\n'),
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Save Anyway', style: 'destructive', onPress: doSave },
+        ]
+      );
+      return;
+    }
+
+    // Show warning (expiring soon) → confirm
+    if (warnings.length > 0) {
+      Alert.alert(
+        '⚠️ Expiry Warning',
+        warnings.map(a => `• ${a.message}`).join('\n') + '\n\nProceed?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Save', onPress: doSave },
+        ]
+      );
+      return;
+    }
+
+    await doSave();
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={{ flex: 1 }}
-    >
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
       <ScrollView style={{ flex: 1, backgroundColor: '#f5f5f5' }}>
-        <Formik
-          initialValues={initialValues}
-          validationSchema={validationSchema}
-          onSubmit={handleSubmit}
-        >
-          {({ handleSubmit, values, setFieldValue, errors, touched }) => (
+        <Formik initialValues={initialValues} validationSchema={validationSchema} onSubmit={handleSubmit}>
+          {({ handleSubmit: fSubmit, values, setFieldValue, errors, touched }) => (
             <View style={{ padding: 16 }}>
-              <Text variant="headlineMedium" style={{ marginBottom: 10, textAlign: 'center', fontWeight: 'bold' }}>
+              <Text variant="headlineMedium" style={{ marginBottom: 4, textAlign: 'center', fontWeight: 'bold' }}>
                 Train Induction Form
               </Text>
-              <Text variant="bodyMedium" style={{ marginBottom: 20, textAlign: 'center', color: 'gray' }}>
-                Fill in the details for train induction
+              <Text variant="bodySmall" style={{ marginBottom: 20, textAlign: 'center', color: '#888' }}>
+                Enter data for any date • Toggle fitness/branding to override master record
               </Text>
 
-              {/* Train Information */}
+              {/* Train + Date */}
               <FormSection
-                title="🚆 Train Information"
+                title="🚆 Train & Date"
                 fields={[
-                  {
-                    name: 'trainId',
-                    label: 'Train ID *',
-                    type: 'select',
-                    options: TRAIN_IDS,
-                  },
+                  { name: 'trainId', label: 'Train ID *', type: 'select', options: TRAIN_IDS },
+                  { name: 'entryDate', label: 'Entry Date (YYYY-MM-DD) *', type: 'text', placeholder: todayStr() },
                 ]}
-                values={values}
-                setFieldValue={setFieldValue}
-                errors={errors}
-                touched={touched}
+                values={values} setFieldValue={setFieldValue} errors={errors} touched={touched}
               />
 
-              {/* Branding Priorities */}
+              {/* Fitness (master) */}
               <FormSection
-                title="🎨 Branding Priority"
+                title="✅ Fitness Certificates  [Master — overrides]"
                 fields={[
-                  {
-                    name: 'brandingType',
-                    label: 'Branding Type',
-                    type: 'select',
-                    options: ['None', 'Election Awareness', 'Tourism', 'Government Campaign', 'Commercial'],
-                  },
-                  {
-                    name: 'brandingPriorityLevel',
-                    label: 'Priority Level',
-                    type: 'select',
-                    options: ['1', '2', '3'],
-                  },
-                  {
-                    name: 'brandingExposureMinutes',
-                    label: 'Exposure Minutes',
-                    type: 'number',
-                    placeholder: '3600',
-                  },
-                  {
-                    name: 'brandingValidFrom',
-                    label: 'Valid From (YYYY-MM-DD)',
-                    type: 'text',
-                    placeholder: '2025-11-01',
-                  },
-                  {
-                    name: 'brandingValidTo',
-                    label: 'Valid To (YYYY-MM-DD)',
-                    type: 'text',
-                    placeholder: '2025-11-30',
-                  },
-                  {
-                    name: 'brandingApprovedBy',
-                    label: 'Approved By',
-                    type: 'text',
-                  },
+                  { name: 'updateFitness', label: 'Update fitness record?', type: 'toggle' },
+                  ...(values.updateFitness ? [
+                    { name: 'fitnessStatus', label: 'Status', type: 'select', options: ['Fit for Service', 'Requires Check'] },
+                    { name: 'rollingStockValidity', label: 'Rolling Stock Valid Until', type: 'text', placeholder: '2026-12-31' },
+                    { name: 'signallingValidity', label: 'Signalling Valid Until', type: 'text', placeholder: '2026-12-31' },
+                    { name: 'telecomValidity', label: 'Telecom Valid Until', type: 'text', placeholder: '2026-12-31' },
+                  ] : []),
                 ]}
-                values={values}
-                setFieldValue={setFieldValue}
-                errors={errors}
-                touched={touched}
+                values={values} setFieldValue={setFieldValue} errors={errors} touched={touched}
               />
 
-              {/* Cleaning Slots */}
+              {/* Branding (master) */}
               <FormSection
-                title="🧹 Cleaning Slots"
+                title="🎨 Branding Priority  [Master — overrides]"
                 fields={[
-                  {
-                    name: 'cleaningType',
-                    label: 'Cleaning Type',
-                    type: 'select',
-                    options: ['Daily Clean', 'Detailing', 'Weekly Maintenance'],
-                  },
-                  {
-                    name: 'cleaningSlotStart',
-                    label: 'Slot Start Time (HH:MM)',
-                    type: 'text',
-                    placeholder: '23:00',
-                  },
-                  {
-                    name: 'cleaningSlotEnd',
-                    label: 'Slot End Time (HH:MM)',
-                    type: 'text',
-                    placeholder: '23:45',
-                  },
-                  {
-                    name: 'cleaningAssignedTeam',
-                    label: 'Assigned Team',
-                    type: 'text',
-                  },
-                  {
-                    name: 'cleaningStatus',
-                    label: 'Status',
-                    type: 'select',
-                    options: ['Scheduled', 'In Progress', 'Completed'],
-                  },
+                  { name: 'updateBranding', label: 'Update branding record?', type: 'toggle' },
+                  ...(values.updateBranding ? [
+                    {
+                      name: 'brandingType', label: 'Branding Type', type: 'select',
+                      options: ['None', 'Election Awareness', 'Tourism', 'Government Campaign', 'Commercial'],
+                    },
+                    ...(values.brandingType !== 'None' ? [
+                      { name: 'brandingPriorityLevel', label: 'Priority Level', type: 'select', options: ['1', '2', '3'] },
+                      { name: 'brandingExposureMinutes', label: 'Exposure Minutes', type: 'number', placeholder: '3600' },
+                      { name: 'brandingValidFrom', label: 'Valid From (YYYY-MM-DD)', type: 'text', placeholder: '2026-02-01' },
+                      { name: 'brandingValidTo', label: 'Valid To (YYYY-MM-DD)', type: 'text', placeholder: '2026-02-28' },
+                      { name: 'brandingApprovedBy', label: 'Approved By', type: 'text' },
+                    ] : []),
+                  ] : []),
                 ]}
-                values={values}
-                setFieldValue={setFieldValue}
-                errors={errors}
-                touched={touched}
+                values={values} setFieldValue={setFieldValue} errors={errors} touched={touched}
               />
 
-              {/* Stabling Geometry */}
+              <Text variant="labelSmall" style={{ textAlign: 'center', color: '#aaa', marginVertical: 10, letterSpacing: 1 }}>
+                ────── DAILY OPERATIONS DATA ──────
+              </Text>
+
+              {/* Cleaning (daily) */}
               <FormSection
-                title="📍 Stabling Geometry"
+                title="🧹 Cleaning Slot  [Daily]"
                 fields={[
-                  {
-                    name: 'yard',
-                    label: 'Yard',
-                    type: 'select',
-                    options: ['Muttom Depot', 'Kalamassery Depot'],
-                  },
-                  {
-                    name: 'trackNo',
-                    label: 'Track Number',
-                    type: 'number',
-                  },
-                  {
-                    name: 'berth',
-                    label: 'Berth',
-                    type: 'text',
-                  },
-                  {
-                    name: 'orientation',
-                    label: 'Orientation',
-                    type: 'select',
-                    options: ['UP', 'DN'],
-                  },
-                  {
-                    name: 'distanceFromBuffer',
-                    label: 'Distance from Buffer (m)',
-                    type: 'number',
-                  },
-                  {
-                    name: 'stablingRemarks',
-                    label: 'Remarks',
-                    type: 'textarea',
-                  },
+                  { name: 'cleaningType', label: 'Type', type: 'select', options: ['Daily Clean', 'Detailing', 'Weekly Maintenance'] },
+                  { name: 'cleaningSlotStart', label: 'Start Time (HH:MM)', type: 'text', placeholder: '23:00' },
+                  { name: 'cleaningSlotEnd', label: 'End Time (HH:MM)', type: 'text', placeholder: '23:45' },
+                  { name: 'cleaningAssignedTeam', label: 'Assigned Team', type: 'text' },
+                  { name: 'cleaningStatus', label: 'Status', type: 'select', options: ['Scheduled', 'In Progress', 'Completed'] },
                 ]}
-                values={values}
-                setFieldValue={setFieldValue}
-                errors={errors}
-                touched={touched}
+                values={values} setFieldValue={setFieldValue} errors={errors} touched={touched}
               />
 
-              {/* Fitness Certificates */}
+              {/* Stabling (daily) */}
               <FormSection
-                title="✅ Fitness Certificates"
+                title="📍 Stabling  [Daily]"
                 fields={[
-                  {
-                    name: 'fitnessStatus',
-                    label: 'Fitness Status',
-                    type: 'select',
-                    options: ['Fit for Service', 'Requires Check'],
-                  },
-                  {
-                    name: 'rollingStockValidity',
-                    label: 'Rolling Stock Valid Until (YYYY-MM-DD)',
-                    type: 'text',
-                    placeholder: '2025-12-10',
-                  },
-                  {
-                    name: 'signallingValidity',
-                    label: 'Signalling Valid Until (YYYY-MM-DD)',
-                    type: 'text',
-                    placeholder: '2025-12-07',
-                  },
-                  {
-                    name: 'telecomValidity',
-                    label: 'Telecom Valid Until (YYYY-MM-DD)',
-                    type: 'text',
-                    placeholder: '2025-12-15',
-                  },
+                  { name: 'yard', label: 'Yard', type: 'select', options: ['Muttom Depot', 'Kalamassery Depot'] },
+                  { name: 'trackNo', label: 'Track No', type: 'number' },
+                  { name: 'berth', label: 'Berth', type: 'text' },
+                  { name: 'orientation', label: 'Orientation', type: 'select', options: ['UP', 'DN'] },
+                  { name: 'distanceFromBuffer', label: 'Distance from Buffer (m)', type: 'number' },
+                  { name: 'stablingRemarks', label: 'Remarks', type: 'textarea' },
                 ]}
-                values={values}
-                setFieldValue={setFieldValue}
-                errors={errors}
-                touched={touched}
+                values={values} setFieldValue={setFieldValue} errors={errors} touched={touched}
               />
 
-              {/* Job Card Status */}
+              {/* Mileage (daily) */}
               <FormSection
-                title="🔧 Job Card Status (Optional)"
+                title="📊 Mileage  [Daily]"
                 fields={[
-                  {
-                    name: 'jobId',
-                    label: 'Job ID',
-                    type: 'text',
-                    placeholder: 'JC-4471',
-                  },
-                  {
-                    name: 'jobTask',
-                    label: 'Task Description',
-                    type: 'textarea',
-                    placeholder: 'Brake Inspection',
-                  },
-                  {
-                    name: 'jobStatus',
-                    label: 'Status',
-                    type: 'select',
-                    options: ['Open', 'Pending', 'Completed'],
-                  },
-                  {
-                    name: 'jobPriority',
-                    label: 'Priority',
-                    type: 'select',
-                    options: ['Low', 'Medium', 'High'],
-                  },
-                  {
-                    name: 'jobAssignedTeam',
-                    label: 'Assigned Team',
-                    type: 'text',
-                  },
-                  {
-                    name: 'jobDueDate',
-                    label: 'Due Date (YYYY-MM-DD)',
-                    type: 'text',
-                    placeholder: '2025-11-23',
-                  },
+                  { name: 'currentMileageKm', label: 'Current Mileage (km)', type: 'number', placeholder: '288650' },
                 ]}
-                values={values}
-                setFieldValue={setFieldValue}
-                errors={errors}
-                touched={touched}
+                values={values} setFieldValue={setFieldValue} errors={errors} touched={touched}
               />
 
-              {/* Mileage — simplified to current only */}
+              {/* Jobs (daily, optional) */}
               <FormSection
-                title="📊 Mileage"
+                title="🔧 Job Card  [Daily, Optional]"
                 fields={[
-                  {
-                    name: 'currentMileageKm',
-                    label: 'Current Mileage (km)',
-                    type: 'number',
-                    placeholder: '288650',
-                  },
+                  { name: 'jobId', label: 'Job ID', type: 'text', placeholder: 'JC-4471' },
+                  { name: 'jobTask', label: 'Task Description', type: 'textarea' },
+                  { name: 'jobStatus', label: 'Status', type: 'select', options: ['Open', 'Pending', 'Completed'] },
+                  { name: 'jobPriority', label: 'Priority', type: 'select', options: ['Low', 'Medium', 'High'] },
+                  { name: 'jobAssignedTeam', label: 'Assigned Team', type: 'text' },
+                  { name: 'jobDueDate', label: 'Due Date (YYYY-MM-DD)', type: 'text' },
                 ]}
-                values={values}
-                setFieldValue={setFieldValue}
-                errors={errors}
-                touched={touched}
+                values={values} setFieldValue={setFieldValue} errors={errors} touched={touched}
               />
 
               <Button
                 mode="contained"
-                onPress={handleSubmit}
+                onPress={fSubmit}
                 loading={loading}
                 disabled={loading}
-                style={{
-                  marginTop: 20,
-                  marginBottom: 30,
-                  paddingVertical: 8,
-                  backgroundColor: '#1e293b',
-                }}
+                style={{ marginTop: 20, marginBottom: 30, paddingVertical: 8, backgroundColor: '#1e293b' }}
                 icon="send"
               >
-                {loading ? 'Submitting...' : 'Submit Induction Form'}
+                {loading ? 'Saving...' : 'Submit Induction Data'}
               </Button>
-
-              <Text variant="bodySmall" style={{ textAlign: 'center', color: 'gray', marginBottom: 20 }}>
-                * Required fields
-              </Text>
             </View>
           )}
         </Formik>
@@ -484,9 +340,9 @@ export default function InductionForm({ navigation }) {
         visible={snackbarVisible}
         onDismiss={() => setSnackbarVisible(false)}
         duration={3000}
-        style={{ backgroundColor: '#4CAF50' }}
+        style={{ backgroundColor: '#16a34a' }}
       >
-        {snackbarMessage}
+        {snackbarMsg}
       </Snackbar>
     </KeyboardAvoidingView>
   );

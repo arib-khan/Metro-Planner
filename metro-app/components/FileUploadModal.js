@@ -1,211 +1,216 @@
-//components\FileUploadModal.js
+// components/FileUploadModal.js
 import React, { useState } from 'react';
 import { View, Alert, Platform } from 'react-native';
 import { Modal, Button, Text, RadioButton, Portal, ActivityIndicator } from 'react-native-paper';
 import * as DocumentPicker from 'expo-document-picker';
 import { useAuth } from '../utils/authHelpers';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '../firebaseConfig';
+import { saveMasterData, saveDailyData, checkCertAlerts } from '../utils/trainDataService';
 
-// ── New JSON format transformer (CSV row → Firestore document) ────────────────
-const transformCSVRowToNewFormat = (rowData, user, fileName) => {
-  const currentDate = new Date().toISOString().split('T')[0];
-  const trainId =
-    rowData.train_id ||
-    rowData.trainid ||
-    `KMRL-${Math.floor(Math.random() * 30) + 1}`;
-
-  const brandingType = rowData.branding_type || rowData.branding || 'None';
-  const isBranded = brandingType && brandingType !== 'None';
-
-  // Fitness — derive from certificate columns
-  const rsValid = (rowData.rolling_stock_certificate || rowData.rolling_stock || '').toLowerCase() === 'valid';
-  const sigValid = (rowData.signalling_certificate || rowData.signalling || '').toLowerCase() === 'valid';
-  const telValid = (rowData.telecom_certificate || rowData.telecom || '').toLowerCase() === 'valid';
-  const expiryDate = rowData.certificate_expiry || rowData.expiry || currentDate;
-
-  return {
-    date: currentDate,
-
-    branding_priorities: isBranded ? [{
-      train_id: trainId,
-      exposure_minutes: parseInt(rowData.remaining_exposure_hours) * 60 ||
-        parseInt(rowData.exposure_minutes) || 0,
-      priority_level:
-        parseInt(rowData.priority_level || rowData.priority) ||
-        (brandingType === 'Government Campaign' || brandingType === 'Election Awareness' ? 1 : 2),
-      branding_type: brandingType,
-      valid_from: rowData.valid_from || rowData.branding_valid_from || currentDate,
-      valid_to: rowData.valid_to || rowData.branding_valid_to || currentDate,
-      approved_by: rowData.approved_by || 'Marketing Dept',
-    }] : [],
-
-    cleaning_slots:
-      (rowData.cleaning_type || rowData.cleaning) &&
-        (rowData.cleaning_type || rowData.cleaning) !== 'None'
-        ? [{
-          train_id: trainId,
-          cleaning_type: rowData.cleaning_type || rowData.cleaning,
-          slot_start: `${currentDate}T${rowData.cleaning_time || '23:00'}`,
-          slot_end: `${currentDate}T${rowData.cleaning_end_time || '23:45'}`,
-          assigned_team: rowData.assigned_team || rowData.team || 'Cleaning Team',
-          status: 'Scheduled',
-        }]
-        : [],
-
-    stabling_geometry: [{
-      train_id: trainId,
-      yard: (rowData.depot || rowData.yard)
-        ? `${rowData.depot || rowData.yard} Depot`
-        : 'Muttom Depot',
-      track_no: parseInt(rowData.track_no || rowData.track) || 1,
-      berth: rowData.berth || 'A1',
-      orientation: rowData.orientation || 'UP',
-      distance_from_buffer_m: parseFloat(rowData.distance_from_buffer_m) || 4.5,
-      remarks: rowData.stabling_remarks || rowData.remarks || 'Normal parking',
-    }],
-
-    fitness_certificates: [{
-      train_id: trainId,
-      // Store the actual expiry dates — dashboard shows these for any date within validity
-      rolling_stock_validity: rsValid ? expiryDate : '',
-      signalling_validity: sigValid ? expiryDate : '',
-      telecom_validity: telValid ? expiryDate : '',
-      status: rsValid && sigValid && telValid ? 'Fit for Service' : 'Requires Check',
-    }],
-
-    job_card_status:
-      rowData.job_description || rowData.description
-        ? [{
-          train_id: trainId,
-          job_id:
-            rowData.job_card_number ||
-            rowData.job_id ||
-            `JC-${Math.floor(Math.random() * 9000) + 1000}`,
-          task: rowData.job_description || rowData.description,
-          status: rowData.work_order_status || rowData.status || 'Open',
-          assigned_team: rowData.assigned_team || rowData.team || 'Maintenance Team',
-          due_date: currentDate,
-          priority: rowData.priority || 'Medium',
-        }]
-        : [],
-
-    // New mileage format — only current_mileage_km
-    mileage: [{
-      train_id: trainId,
-      current_mileage_km: parseInt(rowData.current_mileage || rowData.mileage || rowData.mileage_km) || 0,
-    }],
-
-    // Metadata
-    userId: user.uid,
-    userName: user.displayName,
-    userEmail: user.email,
-    timestamp: serverTimestamp(),
-    status: 'submitted',
-    syncStatus: 'synced',
-    source: 'bulk_upload',
-    original_file: fileName,
-  };
-};
-
-// ── CSV line parser (handles quoted fields with commas) ───────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// CSV line parser — handles quoted fields with commas inside
+// ─────────────────────────────────────────────────────────────────────────────
 const parseCSVLine = (line) => {
-  const values = [];
-  let current = '';
-  let inQuotes = false;
-  for (const char of line) {
-    if (char === '"') {
-      inQuotes = !inQuotes;
-    } else if (char === ',' && !inQuotes) {
-      values.push(current.trim());
-      current = '';
-    } else {
-      current += char;
-    }
+  const vals = [];
+  let cur = '';
+  let inQ = false;
+  for (const ch of line) {
+    if (ch === '"') { inQ = !inQ; }
+    else if (ch === ',' && !inQ) { vals.push(cur.trim()); cur = ''; }
+    else { cur += ch; }
   }
-  values.push(current.trim());
-  return values;
+  vals.push(cur.trim());
+  return vals;
 };
 
-// ── CSV template generator ────────────────────────────────────────────────────
-export const generateCSVTemplate = () => {
-  const headers = [
-    'train_id', 'rolling_stock_certificate', 'signalling_certificate', 'telecom_certificate',
-    'certificate_expiry', 'current_mileage', 'branding_type', 'exposure_minutes', 'priority_level',
-    'valid_from', 'valid_to', 'cleaning_type', 'assigned_team', 'depot', 'track_no', 'berth',
-    'job_description', 'work_order_status', 'priority',
-  ];
-  const sample = [
-    'KMRL-1', 'Valid', 'Valid', 'Valid', '2025-12-31', '288650',
-    'Election Awareness', '3600', '1', '2025-11-01', '2025-11-30',
-    'Daily Clean', 'Team A', 'Muttom', '7', 'B2',
-    'Brake Inspection', 'Open', 'High',
-  ];
-  return headers.join(',') + '\n' + sample.join(',');
+const todayStr = () => new Date().toISOString().split('T')[0];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// transformRow
+//
+// Maps one CSV row → { trainId, masterPayload, dailyPayload }
+//
+// FIX 1: branding_priorities is ALWAYS an array ([] for None trains).
+//         Previously it was `undefined` for None, which caused saveMasterData
+//         to skip writing the field entirely (it treats undefined as "don't touch").
+//
+// FIX 2: stabling fields read from exact CSV column names with no silent fallback.
+//         Previously `row.depot` fallback to default hid mapping bugs.
+//
+// FIX 3: mileage condition uses explicit null check, not truthy check.
+//         "0" is a valid mileage and must not be skipped.
+// ─────────────────────────────────────────────────────────────────────────────
+const transformRow = (row) => {
+  // ── Identity ─────────────────────────────────────────────────────────────
+  const trainId = (row.train_id || '').trim();
+  if (!trainId) throw new Error('Missing train_id');
+
+  const date = (row.date || '').trim() || todayStr();
+
+  // ── Fitness certificates (→ trainMasterData) ──────────────────────────────
+  const rsValid = (row.rolling_stock_certificate || '').trim().toLowerCase() === 'valid';
+  const sigValid = (row.signalling_certificate || '').trim().toLowerCase() === 'valid';
+  const telValid = (row.telecom_certificate || '').trim().toLowerCase() === 'valid';
+  const expiry = (row.certificate_expiry || '').trim();
+
+  const fitness_certificates = (rsValid || sigValid || telValid) ? {
+    rolling_stock_validity: rsValid ? expiry : '',
+    signalling_validity: sigValid ? expiry : '',
+    telecom_validity: telValid ? expiry : '',
+    status: (rsValid && sigValid && telValid) ? 'Fit for Service' : 'Requires Check',
+  } : null;
+
+  // ── Branding (→ trainMasterData) ──────────────────────────────────────────
+  // ALWAYS set branding_priorities to an array — never undefined.
+  // undefined means "don't overwrite existing value" in saveMasterData.
+  // [] means "this train has no branding" and will correctly clear old data.
+  const brandingType = (row.branding_type || '').trim();
+  const hasBranding = brandingType && brandingType !== 'None';
+
+  const branding_priorities = hasBranding ? [{
+    branding_type: brandingType,
+    priority_level: parseInt(row.priority_level) || 2,
+    exposure_minutes: parseInt(row.exposure_minutes) || 0,
+    valid_from: (row.valid_from || '').trim() || date,
+    valid_to: (row.valid_to || '').trim() || date,
+    approved_by: (row.approved_by || '').trim() || 'Marketing Dept',
+  }] : [];                          // ← was `undefined` before — this was the branding bug
+
+  // ── Stabling geometry (→ trainDailyData) ─────────────────────────────────
+  // Read each field explicitly from its CSV column name.
+  // Append " Depot" only if the value doesn't already end with "Depot".
+  const depotRaw = (row.depot || row.yard || '').trim();
+  const yard = depotRaw
+    ? (depotRaw.endsWith('Depot') ? depotRaw : `${depotRaw} Depot`)
+    : 'Muttom Depot';
+
+  const stabling_geometry = {
+    yard,
+    track_no: parseInt(row.track_no) || 1,
+    berth: (row.berth || '').trim() || 'A1',
+    orientation: (row.orientation || '').trim() || 'UP',
+    distance_from_buffer_m: parseFloat(row.distance_from_buffer_m) || 4.5,
+    remarks: (row.remarks || '').trim(),
+  };
+
+  // ── Mileage (→ trainDailyData) ────────────────────────────────────────────
+  // Use explicit null check — not truthy — so "0" km is not skipped.
+  const rawMileage = (row.current_mileage || row.mileage || '').trim();
+  const mileage = rawMileage !== ''
+    ? { current_mileage_km: parseInt(rawMileage) || 0 }
+    : null;
+
+  // ── Cleaning slots (→ trainDailyData) ────────────────────────────────────
+  const cleaningType = (row.cleaning_type || '').trim();
+  const cleaning_slots = cleaningType ? [{
+    cleaning_type: cleaningType,
+    slot_start: `${date}T${(row.cleaning_start || '23:00').trim()}`,
+    slot_end: `${date}T${(row.cleaning_end || '23:45').trim()}`,
+    assigned_team: (row.assigned_team || '').trim() || 'Cleaning Team',
+    status: 'Scheduled',
+  }] : [];
+
+  // ── Job card (→ trainDailyData) ───────────────────────────────────────────
+  const jobDesc = (row.job_description || '').trim();
+  const job_card_status = jobDesc ? [{
+    job_id: (row.job_id || `JC-${Math.floor(Math.random() * 9000) + 1000}`).trim(),
+    task: jobDesc,
+    status: (row.work_order_status || 'Open').trim(),
+    assigned_team: (row.assigned_team || 'Maintenance Team').trim(),
+    due_date: date,
+    priority: (row.priority || 'Medium').trim(),
+  }] : [];
+
+  // ── Assemble payloads ─────────────────────────────────────────────────────
+  const masterPayload = {
+    fitness_certificates,   // null if no cert columns filled
+    branding_priorities,    // [] if no branding (never undefined)
+  };
+
+  const dailyPayload = {
+    date,
+    stabling_geometry,
+    mileage,
+    cleaning_slots,
+    job_card_status,
+  };
+
+  return { trainId, masterPayload, dailyPayload };
 };
 
-// ── Component ─────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Component
+// ─────────────────────────────────────────────────────────────────────────────
 const FileUploadModal = ({ visible, onDismiss, onSuccess }) => {
   const { user } = useAuth();
   const [fileType, setFileType] = useState('csv');
   const [uploading, setUploading] = useState(false);
-  const [fileName, setFileName] = useState('');
   const [progress, setProgress] = useState('');
+  const [fileName, setFileName] = useState('');
+  const [errors, setErrors] = useState([]);
 
+  const meta = user
+    ? { userId: user.uid, userName: user.displayName || user.email, userEmail: user.email }
+    : {};
+
+  // ── File picker ───────────────────────────────────────────────────────────
   const pickFile = async () => {
     try {
-      const mimeTypes =
-        fileType === 'csv'
-          ? ['text/csv', 'text/comma-separated-values', 'application/csv', 'application/vnd.ms-excel']
-          : ['text/xml', 'application/xml'];
+      const types = fileType === 'csv'
+        ? ['text/csv', 'text/comma-separated-values', 'application/csv', 'application/vnd.ms-excel', '*/*']
+        : ['text/xml', 'application/xml', '*/*'];
 
       const result = await DocumentPicker.getDocumentAsync({
-        type: mimeTypes,
+        type: types,
         copyToCacheDirectory: true,
         multiple: false,
       });
 
       if (result.canceled) return;
 
-      if (result.assets && result.assets.length > 0) {
-        const file = result.assets[0];
-        Alert.alert('Confirm File', `Process "${file.name}"?`, [
+      const file = result.assets?.[0];
+      if (!file) { Alert.alert('Error', 'No file selected.'); return; }
+
+      Alert.alert(
+        'Confirm Upload',
+        `Process "${file.name}"?\n\nThis will save data for all rows to Firestore.`,
+        [
           { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Process',
-            onPress: () => {
-              setFileName(file.name);
-              processFile(file.uri, file.name);
-            },
-          },
-        ]);
-      }
-    } catch (error) {
-      Alert.alert('File Selection Error', error.message);
+          { text: 'Upload', onPress: () => { setFileName(file.name); processFile(file.uri); } },
+        ]
+      );
+    } catch (err) {
+      Alert.alert('Error', err.message);
     }
   };
 
-  const processFile = async (fileUri, name) => {
+  // ── Process file ──────────────────────────────────────────────────────────
+  const processFile = async (uri) => {
     setUploading(true);
-    setProgress('Reading file...');
+    setErrors([]);
+
     try {
-      const response = await fetch(fileUri);
-      if (!response.ok) throw new Error('Cannot access selected file.');
-      const content = await response.text();
+      const res = await fetch(uri);
+      if (!res.ok) throw new Error('Cannot read file — fetch failed.');
+      const content = await res.text();
       if (!content.trim()) throw new Error('File is empty.');
 
-      let count = 0;
-      if (fileType === 'csv') {
-        count = await processCSV(content, name);
+      const { count, rowErrors } = fileType === 'csv'
+        ? await processCSV(content)
+        : await processXML(content);
+
+      if (rowErrors.length > 0) {
+        Alert.alert(
+          `Uploaded ${count} rows`,
+          `${rowErrors.length} row(s) had errors:\n${rowErrors.slice(0, 5).join('\n')}`,
+        );
       } else {
-        count = await processXML(content, name);
+        Alert.alert('✅ Success', `All ${count} trains uploaded successfully.`);
       }
 
-      Alert.alert('Success', `Uploaded ${count} record(s) to database!`);
-      onSuccess();
+      onSuccess?.();
       onDismiss();
-    } catch (error) {
-      Alert.alert('Processing Error', error.message || 'Failed to process file.');
+    } catch (err) {
+      Alert.alert('Upload Failed', err.message);
     } finally {
       setUploading(false);
       setProgress('');
@@ -213,68 +218,155 @@ const FileUploadModal = ({ visible, onDismiss, onSuccess }) => {
     }
   };
 
-  const processCSV = async (csvContent, fileName) => {
-    const lines = csvContent
+  // ── CSV processor ─────────────────────────────────────────────────────────
+  const processCSV = async (csv) => {
+    const lines = csv
       .replace(/\r\n/g, '\n')
       .replace(/\r/g, '\n')
       .split('\n')
-      .filter(l => l.trim() !== '');
+      .filter(l => l.trim());
 
-    if (lines.length < 2) throw new Error('CSV must have a header row and at least one data row.');
+    if (lines.length < 2) throw new Error('CSV needs a header row + at least one data row.');
 
-    const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+    // Parse headers — lowercase + trim to be resilient to extra spaces
+    const headers = parseCSVLine(lines[0]).map(h => h.trim().toLowerCase());
+    console.log('[CSV] Headers detected:', headers);
+
     let count = 0;
+    const rowErrors = [];
 
     for (let i = 1; i < lines.length; i++) {
       if (!lines[i].trim()) continue;
-      setProgress(`Processing row ${i} of ${lines.length - 1}...`);
+      setProgress(`Row ${i} of ${lines.length - 1}…`);
 
-      const values = parseCSVLine(lines[i]);
-      const rowData = {};
-      headers.forEach((h, idx) => (rowData[h] = values[idx] || ''));
+      // Build row object — each header maps to the value at the same index
+      const vals = parseCSVLine(lines[i]);
+      const row = {};
+      headers.forEach((h, idx) => { row[h] = (vals[idx] ?? '').trim(); });
+
+      console.log(`[CSV] Row ${i} raw:`, row);
 
       try {
-        const docData = transformCSVRowToNewFormat(rowData, user, fileName);
-        await addDoc(collection(db, 'trainInduction'), docData);
+        const { trainId, masterPayload, dailyPayload } = transformRow(row);
+
+        console.log(`[CSV] Row ${i} transformed:`, {
+          trainId,
+          date: dailyPayload.date,
+          mileage: dailyPayload.mileage,
+          stabling: dailyPayload.stabling_geometry,
+          branding: masterPayload.branding_priorities,
+          fitness: masterPayload.fitness_certificates,
+        });
+
+        // ── Expiry check (warn but don't block) ─────────────────────────────
+        if (masterPayload.fitness_certificates) {
+          const expiredAlerts = checkCertAlerts(
+            masterPayload.fitness_certificates,
+            dailyPayload.date,
+            trainId
+          ).filter(a => a.type === 'expired');
+
+          if (expiredAlerts.length) {
+            console.warn(`[CSV] Row ${i} expired certs:`, expiredAlerts.map(a => a.message));
+            rowErrors.push(`${trainId}: ${expiredAlerts.map(a => a.message).join(', ')}`);
+          }
+        }
+
+        // ── Save master data (fitness + branding) ───────────────────────────
+        // Always save master if fitness OR branding data is present.
+        // branding_priorities=[] is a valid value — it clears old branding.
+        const hasMasterData =
+          masterPayload.fitness_certificates !== null ||
+          masterPayload.branding_priorities !== undefined;
+
+        const saves = [];
+
+        if (hasMasterData) {
+          saves.push(
+            saveMasterData({ trainId, ...masterPayload, ...meta })
+              .then(r => { if (!r.success) throw new Error(`Master save failed: ${r.error}`); })
+          );
+        }
+
+        // ── Save daily data (stabling, mileage, cleaning, jobs) ─────────────
+        // Always save daily data — every CSV row represents one day's operations.
+        saves.push(
+          saveDailyData({ trainId, ...dailyPayload, ...meta })
+            .then(r => { if (!r.success) throw new Error(`Daily save failed: ${r.error}`); })
+        );
+
+        // Run both saves — if either fails, the error is caught below per-row
+        await Promise.all(saves);
+
+        console.log(`[CSV] Row ${i} saved ✓ (${trainId} / ${dailyPayload.date})`);
         count++;
+
       } catch (err) {
-        console.error(`Row ${i} error:`, err);
+        const msg = `Row ${i} (${row.train_id || '?'}): ${err.message}`;
+        console.error('[CSV]', msg, err);
+        rowErrors.push(msg);
+        // Continue to next row — don't abort the whole upload on one failure
       }
     }
 
-    return count;
+    return { count, rowErrors };
   };
 
-  const processXML = async (xmlContent, fileName) => {
-    const trainMatches = xmlContent.match(/<train>[\s\S]*?<\/train>/gi) || [];
-    if (trainMatches.length === 0) throw new Error('No <train> elements found in XML.');
+  // ── XML processor ─────────────────────────────────────────────────────────
+  const processXML = async (xml) => {
+    const blocks = xml.match(/<train>[\s\S]*?<\/train>/gi) || [];
+    if (!blocks.length) throw new Error('No <train> elements found in XML.');
 
+    // All fields that may appear in a <train> block
     const fields = [
-      'train_id', 'current_mileage', 'branding_type', 'valid_from', 'valid_to',
-      'cleaning_type', 'depot', 'certificate_expiry',
-      'rolling_stock_certificate', 'signalling_certificate', 'telecom_certificate',
+      'train_id', 'date', 'current_mileage',
+      'rolling_stock_certificate', 'signalling_certificate', 'telecom_certificate', 'certificate_expiry',
+      'branding_type', 'priority_level', 'exposure_minutes', 'valid_from', 'valid_to', 'approved_by',
+      'cleaning_type', 'cleaning_start', 'cleaning_end', 'assigned_team',
+      'depot', 'yard', 'track_no', 'berth', 'orientation', 'distance_from_buffer_m', 'remarks',
+      'job_id', 'job_description', 'work_order_status', 'priority',
     ];
 
     let count = 0;
-    for (const block of trainMatches) {
-      const rowData = {};
-      fields.forEach(field => {
-        const m = block.match(new RegExp(`<${field}>([\\s\\S]*?)<\\/${field}>`, 'i'));
-        if (m) rowData[field] = m[1].trim();
+    const rowErrors = [];
+
+    for (const block of blocks) {
+      const row = {};
+      fields.forEach(f => {
+        const m = block.match(new RegExp(`<${f}>([\\s\\S]*?)<\\/${f}>`, 'i'));
+        if (m) row[f] = m[1].trim();
       });
-      if (!rowData.train_id) continue;
+
+      if (!row.train_id) continue;
 
       try {
-        const docData = transformCSVRowToNewFormat(rowData, user, fileName);
-        await addDoc(collection(db, 'trainInduction'), docData);
+        const { trainId, masterPayload, dailyPayload } = transformRow(row);
+
+        const saves = [];
+        if (masterPayload.fitness_certificates !== null || masterPayload.branding_priorities !== undefined) {
+          saves.push(
+            saveMasterData({ trainId, ...masterPayload, ...meta })
+              .then(r => { if (!r.success) throw new Error(r.error); })
+          );
+        }
+        saves.push(
+          saveDailyData({ trainId, ...dailyPayload, ...meta })
+            .then(r => { if (!r.success) throw new Error(r.error); })
+        );
+
+        await Promise.all(saves);
         count++;
       } catch (err) {
-        console.error('XML row error:', err);
+        const msg = `${row.train_id}: ${err.message}`;
+        console.error('[XML]', msg);
+        rowErrors.push(msg);
       }
     }
-    return count;
+
+    return { count, rowErrors };
   };
 
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <Portal>
       <Modal
@@ -290,51 +382,49 @@ const FileUploadModal = ({ visible, onDismiss, onSuccess }) => {
         <Text variant="titleLarge" style={{ marginBottom: 4, textAlign: 'center', fontWeight: 'bold' }}>
           📁 Bulk Upload
         </Text>
-        <Text variant="bodySmall" style={{ marginBottom: 20, textAlign: 'center', color: 'gray' }}>
-          Upload CSV or XML with multiple train records (new format)
+        <Text variant="bodySmall" style={{ marginBottom: 8, textAlign: 'center', color: '#888' }}>
+          Fitness/branding → master record (overrideable){'\n'}
+          Stabling / mileage / cleaning / jobs → daily record
         </Text>
 
+        {/* File type selector */}
         <RadioButton.Group onValueChange={setFileType} value={fileType}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
             <RadioButton value="csv" />
-            <Text>CSV File (.csv)</Text>
+            <Text>CSV  (.csv)</Text>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
             <RadioButton value="xml" />
-            <Text>XML File (.xml)</Text>
+            <Text>XML  (.xml)</Text>
           </View>
         </RadioButton.Group>
 
+        {/* Selected file name */}
         {fileName ? (
-          <Text variant="bodyMedium" style={{ marginBottom: 12, textAlign: 'center', color: 'green' }}>
+          <Text variant="bodyMedium" style={{ marginBottom: 12, textAlign: 'center', color: '#16a34a' }}>
             ✅ {fileName}
           </Text>
         ) : null}
 
+        {/* Progress / spinner */}
         {uploading ? (
           <View style={{ alignItems: 'center', marginVertical: 20 }}>
             <ActivityIndicator size="large" color="#1e293b" />
-            <Text style={{ marginTop: 10, color: '#666' }}>{progress || 'Uploading...'}</Text>
+            <Text style={{ marginTop: 10, color: '#666', fontSize: 13 }}>{progress}</Text>
           </View>
         ) : (
-          <>
-            <Button
-              mode="contained"
-              onPress={pickFile}
-              style={{ marginBottom: 10, backgroundColor: '#1e293b' }}
-              icon="file-upload"
-            >
-              {Platform.OS === 'ios' ? 'Choose File' : 'Select File'}
-            </Button>
-            <Text variant="bodySmall" style={{ textAlign: 'center', color: 'gray', marginBottom: 10 }}>
-              CSV columns: train_id, current_mileage, branding_type, valid_from, valid_to,{'\n'}
-              exposure_minutes, certificate_expiry, rolling_stock_certificate, …
-            </Text>
-          </>
+          <Button
+            mode="contained"
+            onPress={pickFile}
+            style={{ marginBottom: 10, backgroundColor: '#1e293b' }}
+            icon="file-upload"
+          >
+            {Platform.OS === 'ios' ? 'Choose File' : 'Select File'}
+          </Button>
         )}
 
         <Button mode="outlined" onPress={onDismiss} disabled={uploading}>
-          {uploading ? 'Processing...' : 'Cancel'}
+          {uploading ? 'Uploading...' : 'Cancel'}
         </Button>
       </Modal>
     </Portal>

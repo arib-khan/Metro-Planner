@@ -1,4 +1,4 @@
-//navigation\AuthStack.js
+// navigation/AuthStack.js
 import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
 import LoginScreen from '../screens/LoginScreen';
@@ -10,20 +10,32 @@ export default function AuthStack() {
   return (
     <Stack.Navigator
       screenOptions={{
-        headerStyle: { backgroundColor: '#2196F3' },
-        headerTintColor: '#fff',
-        headerTitleStyle: { fontWeight: 'bold' },
+        headerStyle: {
+          backgroundColor: '#0a0f1e',
+          elevation: 0,
+          shadowOpacity: 0,
+          borderBottomWidth: 0,
+        },
+        headerTintColor: '#3b82f6',
+        headerTitleStyle: {
+          fontWeight: '700',
+          fontSize: 16,
+          letterSpacing: 0.4,
+          color: '#f0f4ff',
+        },
+        headerBackTitleVisible: false,
+        cardStyle: { backgroundColor: '#0a0f1e' },
       }}
     >
-      <Stack.Screen 
-        name="Login" 
+      <Stack.Screen
+        name="Login"
         component={LoginScreen}
-        options={{ title: 'KMRL Train Induction' }}
+        options={{ headerShown: false }}
       />
-      <Stack.Screen 
-        name="Signup" 
+      <Stack.Screen
+        name="Signup"
         component={SignupScreen}
-        options={{ title: 'Create Account' }}
+        options={{ headerShown: false }}
       />
     </Stack.Navigator>
   );

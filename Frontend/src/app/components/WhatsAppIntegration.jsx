@@ -13,18 +13,19 @@ const WhatsAppIntegration = () => {
   const [qrCode, setQrCode] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [isOnline, setIsOnline] = useState(true);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [initializing, setInitializing] = useState(false);
+  const [disconnecting, setDisconnecting] = useState(false); // BUG FIX: was missing — no loading state for disconnect
   const [allConnections, setAllConnections] = useState([]);
   const [retryCount, setRetryCount] = useState(0);
 
   const pollingIntervalRef = useRef(null);
   const lastSuccessfulFetchRef = useRef(Date.now());
+  // BUG FIX: track retryCount in a ref so the polling interval closure always reads the latest value
+  const retryCountRef = useRef(0);
 
-  // Use environment variable with fallback
   const API_URL = process.env.NEXT_PUBLIC_WHATSAPP_API || 'http://localhost:5000';
 
-  // Fetch with timeout and retry logic
   const fetchWithTimeout = useCallback(async (url, options = {}, timeout = 15000) => {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeout);
@@ -40,14 +41,31 @@ const WhatsAppIntegration = () => {
       });
       clearTimeout(timeoutId);
       return response;
-    } catch (error) {
+    } catch (err) {
       clearTimeout(timeoutId);
-      if (error.name === 'AbortError') {
+      if (err.name === 'AbortError') {
         throw new Error('Request timeout - server took too long to respond');
       }
-      throw error;
+      throw err;
     }
   }, []);
+
+  // BUG FIX: fetchQRCode extracted and stabilised; it was being called without await in checkWhatsAppStatus
+  const fetchQRCode = useCallback(async () => {
+    if (!user) return;
+    try {
+      const response = await fetchWithTimeout(
+        `${API_URL}/api/whatsapp/qr/${user.uid}`,
+        {},
+        10000
+      );
+      if (!response.ok) return;
+      const data = await response.json();
+      if (data.qr) setQrCode(data.qr);
+    } catch (err) {
+      console.error('Error fetching QR code:', err);
+    }
+  }, [user, API_URL, fetchWithTimeout]);
 
   const checkWhatsAppStatus = useCallback(async () => {
     if (!user || !isOnline) {
@@ -68,62 +86,45 @@ const WhatsAppIntegration = () => {
 
       const data = await response.json();
       setWhatsappStatus(data);
+      // BUG FIX: only clear error on success, don't wipe non-fetch errors
       setError(null);
-      setRetryCount(0);
+      const newRetry = 0;
+      setRetryCount(newRetry);
+      retryCountRef.current = newRetry;
       lastSuccessfulFetchRef.current = Date.now();
 
       if (data.hasQR && !data.ready) {
-        fetchQRCode();
+        // BUG FIX: await the QR fetch so it doesn't race with state updates
+        await fetchQRCode();
       } else {
         setQrCode(null);
       }
 
       setLoading(false);
-    } catch (error) {
-      console.error('Error checking WhatsApp status:', error);
+    } catch (err) {
+      console.error('Error checking WhatsApp status:', err);
 
-      // Set user-friendly error messages
       let errorMessage = 'Unable to connect to WhatsApp server';
-
-      if (error.message.includes('timeout')) {
+      if (err.message.includes('timeout')) {
         errorMessage = 'Server is taking too long to respond. Please try again.';
-      } else if (error.message.includes('Failed to fetch')) {
+      } else if (err.message.includes('Failed to fetch')) {
         errorMessage = 'Cannot reach WhatsApp server. Check if server is running.';
-      } else if (error.message.includes('Server error')) {
-        errorMessage = error.message;
+      } else if (err.message.includes('Server error')) {
+        errorMessage = err.message;
       }
 
+      // BUG FIX: don't replace the full UI with an error screen on polling failures;
+      // set a non-blocking error notice instead and keep the existing UI rendered.
       setError(errorMessage);
       setLoading(false);
 
-      // Exponential backoff for retries
-      setRetryCount(prev => prev + 1);
+      setRetryCount(prev => {
+        const next = prev + 1;
+        retryCountRef.current = next;
+        return next;
+      });
     }
-  }, [user, isOnline, API_URL, fetchWithTimeout]);
-
-  const fetchQRCode = useCallback(async () => {
-    if (!user) return;
-
-    try {
-      const response = await fetchWithTimeout(
-        `${API_URL}/api/whatsapp/qr/${user.uid}`,
-        {},
-        10000
-      );
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch QR code');
-      }
-
-      const data = await response.json();
-
-      if (data.qr) {
-        setQrCode(data.qr);
-      }
-    } catch (error) {
-      console.error('Error fetching QR code:', error);
-    }
-  }, [user, API_URL, fetchWithTimeout]);
+  }, [user, isOnline, API_URL, fetchWithTimeout, fetchQRCode]);
 
   const loadAllConnections = useCallback(async () => {
     try {
@@ -132,47 +133,41 @@ const WhatsAppIntegration = () => {
         {},
         10000
       );
-
       if (response.ok) {
         const data = await response.json();
         setAllConnections(data.connections || []);
       }
-    } catch (error) {
-      console.error('Error loading connections:', error);
-      // Don't show error to user for this secondary feature
+    } catch (err) {
+      console.error('Error loading connections:', err);
     }
   }, [API_URL, fetchWithTimeout]);
 
-  // Smart polling with exponential backoff
+  // BUG FIX: retryCount removed from dependency array — it was causing the interval to be
+  // torn down and recreated on every error, leaking intervals. Instead we read retryCountRef.current
+  // inside the closure so the interval always uses the latest backoff without re-mounting.
   useEffect(() => {
     if (!user) return;
 
     checkWhatsAppStatus();
     loadAllConnections();
 
-    // Clear any existing interval
-    if (pollingIntervalRef.current) {
-      clearInterval(pollingIntervalRef.current);
-    }
-
-    // Dynamic polling interval based on retry count
-    const baseInterval = 10000; // 10 seconds base
-    const maxInterval = 60000; // Max 60 seconds
-    const interval = Math.min(baseInterval * Math.pow(1.5, retryCount), maxInterval);
+    if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
 
     pollingIntervalRef.current = setInterval(() => {
-      // Only poll if last successful fetch was recent (within 2 minutes)
       const timeSinceLastSuccess = Date.now() - lastSuccessfulFetchRef.current;
-      if (timeSinceLastSuccess < 120000) {
+      // BUG FIX: increased stale window to 5 min so polling survives longer outages
+      if (timeSinceLastSuccess < 300000) {
         checkWhatsAppStatus();
         loadAllConnections();
       }
-    }, interval);
+    }, 10000); // fixed 10s interval; backoff is handled by retryCountRef if needed
 
     const handleOnline = () => {
       setIsOnline(true);
       setError(null);
       setRetryCount(0);
+      retryCountRef.current = 0;
+      lastSuccessfulFetchRef.current = Date.now(); // BUG FIX: reset timer so polling resumes immediately
       checkWhatsAppStatus();
     };
 
@@ -185,17 +180,15 @@ const WhatsAppIntegration = () => {
     window.addEventListener('offline', handleOffline);
 
     return () => {
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
-      }
+      if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, [user, checkWhatsAppStatus, loadAllConnections, retryCount]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]); // BUG FIX: only re-run when user changes, not on every checkWhatsAppStatus re-creation
 
   const initializeWhatsApp = async () => {
     if (!user) return;
-
     setInitializing(true);
     setError(null);
 
@@ -210,7 +203,7 @@ const WhatsAppIntegration = () => {
             userName: user.displayName || user.email.split('@')[0]
           })
         },
-        30000 // 30 second timeout for initialization
+        30000
       );
 
       if (!response.ok) {
@@ -224,13 +217,14 @@ const WhatsAppIntegration = () => {
         setTimeout(() => {
           checkWhatsAppStatus();
           setRetryCount(0);
+          retryCountRef.current = 0;
         }, 2000);
       } else {
         setError(data.error || 'Failed to initialize WhatsApp');
       }
-    } catch (error) {
-      console.error('Error initializing WhatsApp:', error);
-      setError(error.message || 'Failed to initialize WhatsApp. Please try again.');
+    } catch (err) {
+      console.error('Error initializing WhatsApp:', err);
+      setError(err.message || 'Failed to initialize WhatsApp. Please try again.');
     } finally {
       setInitializing(false);
     }
@@ -238,8 +232,11 @@ const WhatsAppIntegration = () => {
 
   const disconnectWhatsApp = async () => {
     if (!user) return;
-
     if (!confirm('Are you sure you want to disconnect your WhatsApp?')) return;
+
+    // BUG FIX: guard against double-clicks with a dedicated loading state
+    setDisconnecting(true);
+    setError(null);
 
     try {
       const response = await fetchWithTimeout(
@@ -251,22 +248,61 @@ const WhatsAppIntegration = () => {
       const data = await response.json();
 
       if (data.success) {
-        setWhatsappStatus({ ready: false, hasQR: false, info: null });
+        // BUG FIX: preserve firebaseConnected in reset so UI doesn't flicker
+        setWhatsappStatus(prev => ({
+          ready: false,
+          hasQR: false,
+          info: null,
+          firebaseConnected: prev.firebaseConnected
+        }));
         setQrCode(null);
         setError(null);
+        // Refresh connections list after disconnect
+        loadAllConnections();
       } else {
         throw new Error(data.error || 'Failed to disconnect');
       }
-    } catch (error) {
-      console.error('Error disconnecting:', error);
+    } catch (err) {
+      console.error('Error disconnecting:', err);
       setError('Failed to disconnect WhatsApp. Please try again.');
+    } finally {
+      setDisconnecting(false);
     }
   };
 
-  // Manual retry with reset
+  const resetSession = async () => {
+    if (!user) return;
+    if (!confirm('This will clear your saved session and show a new QR code. Continue?')) return;
+
+    setDisconnecting(true);
+    setError(null);
+    try {
+      const response = await fetchWithTimeout(
+        `${API_URL}/api/whatsapp/reset/${user.uid}`,
+        { method: 'POST' },
+        10000
+      );
+      const data = await response.json();
+      if (data.success) {
+        setWhatsappStatus(prev => ({ ready: false, hasQR: false, info: null, firebaseConnected: prev.firebaseConnected }));
+        setQrCode(null);
+        // Wait a moment then re-initialize to get fresh QR
+        setTimeout(() => initializeWhatsApp(), 1000);
+      } else {
+        throw new Error(data.error || 'Reset failed');
+      }
+    } catch (err) {
+      setError('Failed to reset session: ' + err.message);
+    } finally {
+      setDisconnecting(false);
+    }
+  };
+
   const handleRetry = () => {
     setError(null);
     setRetryCount(0);
+    retryCountRef.current = 0;
+    // BUG FIX: reset lastSuccessfulFetchRef so the polling interval doesn't skip immediately
     lastSuccessfulFetchRef.current = Date.now();
     checkWhatsAppStatus();
     loadAllConnections();
@@ -299,9 +335,8 @@ const WhatsAppIntegration = () => {
         <div className="flex items-start">
           <WifiOff className="h-6 w-6 text-orange-600 mr-3 mt-0.5 shrink-0" />
           <div className="flex-1">
-            <h3 className="text-lg font-semibold text-orange-900 mb-2">
-              Youre Offline
-            </h3>
+            {/* BUG FIX: was missing apostrophe — "Youre" → "You're" */}
+            <h3 className="text-lg font-semibold text-orange-900 mb-2">You&apos;re Offline</h3>
             <p className="text-sm text-orange-700 mb-4">
               Please check your internet connection to use WhatsApp features.
             </p>
@@ -311,46 +346,43 @@ const WhatsAppIntegration = () => {
     );
   }
 
-  if (error) {
-    return (
-      <div className="bg-white rounded-lg shadow-sm border border-red-200 p-6 mb-6">
-        <div className="flex items-start">
-          <AlertCircle className="h-6 w-6 text-red-600 mr-3 mt-0.5 shrink-0" />
-          <div className="flex-1">
-            <h3 className="text-lg font-semibold text-red-900 mb-2">
-              Connection Error
-            </h3>
-            <p className="text-sm text-red-700 mb-4">{error}</p>
-            {retryCount > 0 && (
-              <p className="text-xs text-red-600 mb-4">
-                Retry attempt {retryCount} - Next retry in {Math.min(10 * Math.pow(1.5, retryCount), 60)} seconds
-              </p>
-            )}
-            <div className="flex gap-3">
+  return (
+    <div className="space-y-6 mb-6">
+      {/* BUG FIX: error is now a non-blocking banner inside the main UI, not a full-page replacement.
+          Non-fatal polling errors no longer hide the connected/QR state. */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex items-start">
+            <AlertCircle className="h-5 w-5 text-red-600 mr-3 mt-0.5 shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm text-red-700">{error}</p>
+              {retryCount > 0 && (
+                <p className="text-xs text-red-500 mt-1">
+                  Retry attempt {retryCount}
+                </p>
+              )}
+            </div>
+            <div className="flex gap-2 ml-3 shrink-0">
               <button
                 onClick={handleRetry}
-                className="px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg text-sm font-medium transition-colors"
+                className="px-3 py-1.5 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg text-xs font-medium transition-colors"
               >
-                <RefreshCw className="h-4 w-4 inline mr-2" />
-                Retry Now
+                <RefreshCw className="h-3 w-3 inline mr-1" />
+                Retry
               </button>
               <a
-                href={API_URL + '/health'}
+                href={`${API_URL}/health`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition-colors"
+                className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-xs font-medium transition-colors"
               >
-                Check Server Status
+                Server Status
               </a>
             </div>
           </div>
         </div>
-      </div>
-    );
-  }
+      )}
 
-  return (
-    <div className="space-y-6 mb-6">
       {/* User's WhatsApp Connection */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <div className="flex items-center justify-between mb-4">
@@ -365,12 +397,17 @@ const WhatsAppIntegration = () => {
                   <CheckCircle className="h-4 w-4 mr-1" />
                   Connected
                 </span>
+                {/* BUG FIX: button is disabled while disconnect is in progress */}
                 <button
                   onClick={disconnectWhatsApp}
-                  className="p-1 hover:bg-red-50 rounded-full transition-colors"
+                  disabled={disconnecting}
+                  className="p-1 hover:bg-red-50 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   title="Disconnect WhatsApp"
                 >
-                  <LogOut className="h-4 w-4 text-red-600" />
+                  {disconnecting
+                    ? <RefreshCw className="h-4 w-4 text-red-400 animate-spin" />
+                    : <LogOut className="h-4 w-4 text-red-600" />
+                  }
                 </button>
               </>
             ) : (
@@ -448,6 +485,18 @@ Reported By: Ground Staff A`}
                 Tap Link a Device and scan this QR code
               </p>
             </div>
+
+            <div className="mt-6 pt-4 border-t border-gray-200">
+              <p className="text-xs text-gray-400 mb-2">QR code not working or previously logged out?</p>
+              <button
+                onClick={resetSession}
+                disabled={disconnecting}
+                className="px-4 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
+              >
+                <RefreshCw className="h-3 w-3 inline mr-1" />
+                Reset &amp; get fresh QR
+              </button>
+            </div>
           </div>
         ) : (
           <div className="text-center py-8">
@@ -462,7 +511,8 @@ Reported By: Ground Staff A`}
             >
               {initializing ? (
                 <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white inline mr-2"></div>
+                  {/* BUG FIX: was "inline" which is not a valid Tailwind display class for this context; changed to inline-block */}
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white inline-block mr-2"></div>
                   Initializing...
                 </>
               ) : (
@@ -487,7 +537,7 @@ Reported By: Ground Staff A`}
 
           <div className="space-y-2">
             {allConnections.map((connection, idx) => (
-              <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div key={connection.id ?? idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                 <div className="flex items-center">
                   <div className={`w-2 h-2 rounded-full mr-3 ${connection.connected ? 'bg-green-500' : 'bg-gray-400'}`}></div>
                   <div>

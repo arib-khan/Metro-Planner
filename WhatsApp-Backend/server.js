@@ -15,77 +15,73 @@ const PORT = process.env.PORT || 5000;
 let firebaseInitialized = false;
 
 try {
-  if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount)
-    });
-    firebaseInitialized = true;
-    console.log('✅ Firebase initialized from environment variable');
-  } else {
-    console.warn('⚠️ FIREBASE_SERVICE_ACCOUNT environment variable not found');
-    const serviceAccountPath = path.join(__dirname, 'serviceAccountKey.json');
-    if (fs.existsSync(serviceAccountPath)) {
-      const serviceAccount = require(serviceAccountPath);
-      admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount)
-      });
-      firebaseInitialized = true;
-      console.log('✅ Firebase initialized from local file');
+    if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+        const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+        admin.initializeApp({
+            credential: admin.credential.cert(serviceAccount)
+        });
+        firebaseInitialized = true;
+        console.log('✅ Firebase initialized from environment variable');
     } else {
-      console.error('❌ Firebase service account not found - service will be limited');
+        console.warn('⚠️ FIREBASE_SERVICE_ACCOUNT environment variable not found');
+        const serviceAccountPath = path.join(__dirname, 'serviceAccountKey.json');
+        if (fs.existsSync(serviceAccountPath)) {
+            const serviceAccount = require(serviceAccountPath);
+            admin.initializeApp({
+                credential: admin.credential.cert(serviceAccount)
+            });
+            firebaseInitialized = true;
+            console.log('✅ Firebase initialized from local file');
+        } else {
+            console.error('❌ Firebase service account not found - service will be limited');
+        }
     }
-  }
 } catch (error) {
-  console.error('❌ Firebase initialization error:', error.message);
+    console.error('❌ Firebase initialization error:', error.message);
 }
 
 const db = firebaseInitialized ? admin.firestore() : null;
 
-// FIXED: Proper CORS configuration for production
+// CORS configuration
 const allowedOrigins = [
-  'http://localhost:3000',
-  'https://metro-planner.vercel.app',
-  process.env.FRONTEND_URL // Add your custom domain if any
+    'http://localhost:3000',
+    'https://metro-planner.vercel.app',
+    process.env.FRONTEND_URL
 ].filter(Boolean);
 
 app.use(cors({
-  origin: function(origin, callback) {
-    // Allow requests with no origin (mobile apps, Postman, etc.)
-    if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      console.warn(`⚠️ CORS blocked origin: ${origin}`);
-      callback(null, true); // Allow anyway for now, but log it
-    }
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+    origin: function (origin, callback) {
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.indexOf(origin) !== -1) {
+            callback(null, true);
+        } else {
+            console.warn(`⚠️ CORS blocked origin: ${origin}`);
+            callback(null, true); // Allow anyway but log it
+        }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 app.use(express.json());
 
-// Request timeout middleware
 app.use((req, res, next) => {
-  req.setTimeout(30000); // 30 second timeout
-  res.setTimeout(30000);
-  next();
+    req.setTimeout(30000);
+    res.setTimeout(30000);
+    next();
 });
 
 // Store multiple WhatsApp clients (one per user)
 const whatsappClients = new Map(); // userId -> { client, qrCode, ready, info }
 
-// HARDCODED PARSER with better error handling
+// ─── HARDCODED PARSER ─────────────────────────────────────────────────────────
+
 function parseTrainMessage(messageText) {
     try {
-        console.log('🔍 Parsing message with hardcoded parser...');
-        
         const lines = messageText.split('\n').map(line => line.trim()).filter(line => line);
         const currentDate = new Date().toISOString().split('T')[0];
-        
+
         const data = {
             train_id: '',
             depot: '',
@@ -105,14 +101,14 @@ function parseTrainMessage(messageText) {
             berth: 'A1',
             orientation: 'UP'
         };
-        
+
         for (const line of lines) {
             const colonIndex = line.indexOf(':');
             if (colonIndex === -1) continue;
-            
+
             const key = line.substring(0, colonIndex).trim().toLowerCase();
             const value = line.substring(colonIndex + 1).trim();
-            
+
             if (key.includes('train') && (key.includes('set') || key.includes('id'))) {
                 data.train_id = value;
             } else if (key.includes('depot')) {
@@ -144,14 +140,12 @@ function parseTrainMessage(messageText) {
                 data.berth = value;
             }
         }
-        
+
         if (!data.train_id) {
             const trainMatch = messageText.match(/(?:train\s*(?:set|id)?[:\s]+)?(KMRC[-_]?\d+)/i);
-            if (trainMatch) {
-                data.train_id = trainMatch[1];
-            }
+            if (trainMatch) data.train_id = trainMatch[1];
         }
-        
+
         return data;
     } catch (error) {
         console.error('❌ Error parsing message:', error);
@@ -161,10 +155,10 @@ function parseTrainMessage(messageText) {
 
 function convertToFirestoreFormat(parsedData, senderInfo, userId) {
     const currentDate = new Date().toISOString().split('T')[0];
-    
+
     let slotStart = `${currentDate}T23:00`;
     let slotEnd = `${currentDate}T23:45`;
-    
+
     if (parsedData.cleaning_slot) {
         const timeMatch = parsedData.cleaning_slot.match(/(\d{2}:\d{2})[–-](\d{2}:\d{2})/);
         if (timeMatch) {
@@ -172,46 +166,52 @@ function convertToFirestoreFormat(parsedData, senderInfo, userId) {
             slotEnd = `${currentDate}T${timeMatch[2]}`;
         }
     }
-    
-    const priorityLevel = parsedData.branding_priority === 'High' ? 1 : 
-                         parsedData.branding_priority === 'Low' ? 3 : 2;
-    
+
+    const priorityLevel = parsedData.branding_priority === 'High' ? 1
+        : parsedData.branding_priority === 'Low' ? 3 : 2;
+
     const currentMileage = parseInt(parsedData.current_mileage) || 0;
     const previousMileage = parseInt(parsedData.previous_mileage) || 0;
     const delta = currentMileage - previousMileage;
-    
+
+    // BUG FIX: admin.firestore.FieldValue.serverTimestamp() throws when firebaseInitialized is false.
+    // Use a plain ISO string as a safe fallback so this function works regardless.
+    const serverTimestamp = firebaseInitialized
+        ? admin.firestore.FieldValue.serverTimestamp()
+        : new Date().toISOString();
+
     return {
         date: currentDate,
-        
+
         branding_priorities: parsedData.branding_type ? [{
             train_id: parsedData.train_id,
             priority_level: priorityLevel,
             branding_type: parsedData.branding_type,
             valid_from: currentDate,
             valid_to: currentDate,
-            approved_by: "WhatsApp Submission",
+            approved_by: 'WhatsApp Submission',
             remarks: `Submitted via WhatsApp by ${senderInfo.name}`
         }] : [],
-        
+
         cleaning_slots: parsedData.cleaning_slot ? [{
             train_id: parsedData.train_id,
             cleaning_type: parsedData.cleaning_type || 'Daily Clean',
             slot_start: slotStart,
             slot_end: slotEnd,
             assigned_team: parsedData.reported_by,
-            status: "Scheduled"
+            status: 'Scheduled'
         }] : [],
-        
+
         stabling_geometry: [{
             train_id: parsedData.train_id,
             yard: parsedData.depot ? `${parsedData.depot} Depot` : 'Muttom Depot',
             track_no: parsedData.track_no || 1,
             berth: parsedData.berth || 'A1',
-            orientation: parsedData.orientation || "UP",
+            orientation: parsedData.orientation || 'UP',
             distance_from_buffer_m: 4.5,
-            remarks: "Submitted via WhatsApp"
+            remarks: 'Submitted via WhatsApp'
         }],
-        
+
         fitness_certificates: [{
             train_id: parsedData.train_id,
             rolling_stock_validity: '',
@@ -219,7 +219,7 @@ function convertToFirestoreFormat(parsedData, senderInfo, userId) {
             telecom_validity: '',
             status: parsedData.fitness_status
         }],
-        
+
         job_card_status: parsedData.job_card_number ? [{
             train_id: parsedData.train_id,
             job_id: parsedData.job_card_number,
@@ -229,7 +229,7 @@ function convertToFirestoreFormat(parsedData, senderInfo, userId) {
             due_date: currentDate,
             priority: parsedData.branding_priority
         }] : [],
-        
+
         mileage: currentMileage > 0 ? [{
             train_id: parsedData.train_id,
             previous_mileage_km: previousMileage,
@@ -237,11 +237,11 @@ function convertToFirestoreFormat(parsedData, senderInfo, userId) {
             delta_km: delta,
             remarks: `Reported via WhatsApp at ${parsedData.reported_time}`
         }] : [],
-        
+
         userId: userId,
         userName: senderInfo.userName,
         userEmail: senderInfo.userEmail,
-        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        timestamp: serverTimestamp,
         status: 'submitted',
         syncStatus: 'synced',
         source: 'whatsapp',
@@ -255,7 +255,33 @@ function convertToFirestoreFormat(parsedData, senderInfo, userId) {
     };
 }
 
-// Initialize WhatsApp client for a specific user
+// ─── WHATSAPP CLIENT INIT ──────────────────────────────────────────────────────
+
+// BUG FIX: mutex map so concurrent /initialize calls for the same userId don't
+// race past the whatsappClients.has() check before .set() completes
+const initializingUsers = new Set();
+
+// Detect OS so we can apply the right Puppeteer flags
+const isWindows = process.platform === 'win32';
+
+// Build platform-appropriate Puppeteer args
+// BUG FIX: --no-zygote and --disable-gpu are Linux-specific and cause silent
+// hangs / crashes on Windows after authentication succeeds
+function getPuppeteerArgs() {
+    const common = [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--no-first-run',
+    ];
+    if (!isWindows) {
+        // These flags are safe on Linux/Mac but break Chrome on Windows
+        common.push('--no-zygote', '--disable-gpu');
+    }
+    return common;
+}
+
 async function initializeUserWhatsApp(userId, userEmail, userName) {
     try {
         if (whatsappClients.has(userId)) {
@@ -263,7 +289,31 @@ async function initializeUserWhatsApp(userId, userEmail, userName) {
             return whatsappClients.get(userId);
         }
 
+        // BUG FIX: prevent duplicate init calls racing past the has() check above
+        if (initializingUsers.has(userId)) {
+            console.log(`📱 Already initializing for ${userEmail}, waiting...`);
+            // Wait up to 60s for the other init to finish
+            await new Promise((resolve, reject) => {
+                const start = Date.now();
+                const poll = setInterval(() => {
+                    if (whatsappClients.has(userId)) {
+                        clearInterval(poll);
+                        resolve();
+                    } else if (!initializingUsers.has(userId)) {
+                        clearInterval(poll);
+                        reject(new Error('Concurrent initialization failed'));
+                    } else if (Date.now() - start > 60000) {
+                        clearInterval(poll);
+                        reject(new Error('Initialization timeout waiting for concurrent init'));
+                    }
+                }, 500);
+            });
+            return whatsappClients.get(userId);
+        }
+
+        initializingUsers.add(userId);
         console.log(`📱 Initializing new WhatsApp client for user ${userEmail}...`);
+        console.log(`🖥️  Platform: ${process.platform} — using ${isWindows ? 'Windows' : 'Linux/Mac'} Puppeteer flags`);
 
         const clientData = {
             client: null,
@@ -281,16 +331,9 @@ async function initializeUserWhatsApp(userId, userEmail, userName) {
                 dataPath: path.join(__dirname, '.wwebjs_auth')
             }),
             puppeteer: {
-                headless: true,
-                args: [
-                    '--no-sandbox',
-                    '--disable-setuid-sandbox',
-                    '--disable-dev-shm-usage',
-                    '--disable-accelerated-2d-canvas',
-                    '--no-first-run',
-                    '--no-zygote',
-                    '--disable-gpu'
-                ]
+                // 'new' headless mode required for Chrome 112+ (Puppeteer 19+)
+                headless: 'new',
+                args: getPuppeteerArgs()
             }
         });
 
@@ -306,10 +349,11 @@ async function initializeUserWhatsApp(userId, userEmail, userName) {
 
         client.on('ready', async () => {
             console.log(`✅ WhatsApp ready for ${userEmail}`);
+            initializingUsers.delete(userId); // BUG FIX: release mutex on success
             clientData.ready = true;
             clientData.qrCode = null;
             clientData.lastActivity = Date.now();
-            
+
             const info = client.info;
             clientData.info = {
                 pushname: info.pushname,
@@ -328,33 +372,85 @@ async function initializeUserWhatsApp(userId, userEmail, userName) {
                         whatsappInfo: clientData.info
                     });
                 } catch (error) {
-                    console.error('❌ Error updating Firestore:', error);
+                    console.error('❌ Error updating Firestore on ready:', error);
                 }
             }
         });
+
+        // Helper: wipe the LocalAuth session folder for this user so the next
+        // initialize() starts fresh and generates a new QR instead of silently hanging
+        function wipeAuthCache() {
+            const authPath = path.join(__dirname, '.wwebjs_auth', `session-${userId}`);
+            if (fs.existsSync(authPath)) {
+                try {
+                    fs.rmSync(authPath, { recursive: true, force: true });
+                    console.log(`🗑️  Wiped stale auth cache for ${userEmail} (${authPath})`);
+                } catch (e) {
+                    console.error(`⚠️  Could not wipe auth cache for ${userEmail}:`, e.message);
+                }
+            }
+        }
 
         client.on('authenticated', () => {
             console.log(`🔐 Authentication successful for ${userEmail}`);
         });
 
-        client.on('auth_failure', (msg) => {
-            console.error(`❌ Authentication failed for ${userEmail}:`, msg);
+        // Fires when the saved session is rejected by WhatsApp (e.g. user logged out
+        // from their phone, or session expired). We MUST delete the cached session here —
+        // otherwise every future initialize() will re-use the dead session, skip QR
+        // generation, authenticate successfully, then hang forever waiting for 'ready'.
+        client.on('auth_failure', async (msg) => {
+            console.error(`❌ Auth failure for ${userEmail} — session likely logged out from phone:`, msg);
             clientData.ready = false;
+
+            // Tear down the broken client
+            try { await client.destroy(); } catch (_) { }
+
+            // Remove stale Map entries and mutex
+            whatsappClients.delete(userId);
+            initializingUsers.delete(userId);
+
+            // Wipe the cached session so next init shows QR immediately
+            wipeAuthCache();
+
+            // Update Firestore so the frontend shows "Not Connected"
+            if (db) {
+                try {
+                    await db.collection('whatsappConnections').doc(userId).update({
+                        connected: false,
+                        disconnectedAt: admin.firestore.FieldValue.serverTimestamp(),
+                        disconnectReason: 'auth_failure'
+                    });
+                } catch (_) { }
+            }
+
+            console.log(`💡 ${userEmail}: Auth cache cleared — next login will show a fresh QR code`);
         });
 
         client.on('disconnected', async (reason) => {
-            console.log(`🔴 Client disconnected for ${userEmail}:`, reason);
+            console.log(`🔴 Client disconnected for ${userEmail}: ${reason}`);
             clientData.ready = false;
             clientData.info = null;
+
+            // LOGOUT means the user removed this linked device from their phone.
+            // Same as auth_failure — wipe cache so next init generates a new QR.
+            const isLogout = reason === 'LOGOUT' || reason === 'NAVIGATION';
+            if (isLogout) {
+                console.log(`📵 ${userEmail} logged out from phone — clearing session cache`);
+                try { await client.destroy(); } catch (_) { }
+                whatsappClients.delete(userId);
+                wipeAuthCache();
+            }
 
             if (db) {
                 try {
                     await db.collection('whatsappConnections').doc(userId).update({
                         connected: false,
-                        disconnectedAt: admin.firestore.FieldValue.serverTimestamp()
+                        disconnectedAt: admin.firestore.FieldValue.serverTimestamp(),
+                        disconnectReason: reason
                     });
                 } catch (error) {
-                    console.error('❌ Error updating Firestore:', error);
+                    console.error('❌ Error updating Firestore on disconnect:', error);
                 }
             }
         });
@@ -372,7 +468,7 @@ async function initializeUserWhatsApp(userId, userEmail, userName) {
                 let contactName = 'Unknown';
                 let contactNumber = 'unknown';
                 let isGroup = false;
-                
+
                 try {
                     const contact = await message.getContact();
                     contactName = contact.pushname || contact.name || contact.number || 'Unknown';
@@ -381,22 +477,25 @@ async function initializeUserWhatsApp(userId, userEmail, userName) {
                     contactNumber = message.from || 'unknown';
                     contactName = message._data?.notifyName || 'Unknown';
                 }
-                
+
                 try {
                     const chat = await message.getChat();
                     isGroup = chat.isGroup || false;
                 } catch (chatError) {
                     isGroup = message.from?.includes('@g.us') || false;
                 }
-                
+
                 console.log(`📨 Message from ${contactName} (User: ${userEmail}): ${message.body}`);
-                
+
                 const messageText = message.body.toLowerCase();
-                if (messageText.includes('train') || messageText.includes('depot') || 
-                    messageText.includes('mileage') || messageText.includes('kmrc')) {
-                    
+                if (
+                    messageText.includes('train') ||
+                    messageText.includes('depot') ||
+                    messageText.includes('mileage') ||
+                    messageText.includes('kmrc')
+                ) {
                     const parsedData = parseTrainMessage(message.body);
-                    
+
                     if (parsedData.train_id) {
                         const firestoreData = convertToFirestoreFormat(parsedData, {
                             name: contactName,
@@ -406,11 +505,10 @@ async function initializeUserWhatsApp(userId, userEmail, userName) {
                             userName: userName,
                             userEmail: userEmail
                         }, userId);
-                        
+
                         const docRef = await db.collection('trainInduction').add(firestoreData);
-                        
                         console.log(`✅ Data saved by ${userEmail}:`, docRef.id);
-                        
+
                         await message.reply(
                             `✅ *Train Induction Received*\n\n` +
                             `Train ID: ${parsedData.train_id}\n` +
@@ -437,27 +535,119 @@ async function initializeUserWhatsApp(userId, userEmail, userName) {
         });
 
         clientData.client = client;
-        whatsappClients.set(userId, clientData);
 
-        await client.initialize();
+        // BUG FIX: only add to the Map AFTER initialize() succeeds.
+        // Previously the entry was stored before initialize() so a failed init left a
+        // zombie record that permanently blocked re-initialization for that userId.
+        // 
+        // BUG FIX: wrap initialize() with a 3-minute timeout so a hung Puppeteer/Chrome
+        // session doesn't block the server forever with no feedback.
+        await Promise.race([
+            client.initialize(),
+            new Promise((_, reject) =>
+                setTimeout(() => reject(new Error(
+                    'WhatsApp initialization timed out after 3 minutes. ' +
+                    'This usually means Chrome/Puppeteer is hung. ' +
+                    'Delete the .wwebjs_auth folder and try again.'
+                )), 180000)
+            )
+        ]);
+
+        whatsappClients.set(userId, clientData);
+        initializingUsers.delete(userId);
 
         return clientData;
     } catch (error) {
+        // Clean up any partial state if init fails
+        whatsappClients.delete(userId);
+        initializingUsers.delete(userId);
         console.error(`❌ Failed to initialize WhatsApp for ${userEmail}:`, error);
         throw error;
     }
 }
 
-// API Routes with proper error handling
+// ─── STARTUP: DETECT STALE SESSIONS ───────────────────────────────────────────
+// If the server was previously shut down while a session was mid-authentication
+// (authenticated but not ready), the .wwebjs_auth folder will contain a session
+// that WhatsApp has since invalidated. Detect this by checking Firestore for
+// users whose last known state was "connected: false" but still have a local
+// session folder — and wipe those folders proactively.
+async function cleanStaleAuthFolders() {
+    const authRoot = path.join(__dirname, '.wwebjs_auth');
+    if (!fs.existsSync(authRoot)) return;
 
-// Health check - CRITICAL for monitoring
+    const folders = fs.readdirSync(authRoot).filter(f => f.startsWith('session-'));
+    if (folders.length === 0) return;
+
+    console.log(`🔍 Found ${folders.length} cached session(s) — checking validity...`);
+
+    for (const folder of folders) {
+        const userId = folder.replace('session-', '');
+        let shouldWipe = false;
+
+        if (db) {
+            try {
+                const doc = await db.collection('whatsappConnections').doc(userId).get();
+                if (doc.exists && doc.data().connected === false) {
+                    console.log(`⚠️  Session folder "${folder}" belongs to a disconnected user — wiping`);
+                    shouldWipe = true;
+                }
+            } catch (_) {
+                // If we can't check, leave the folder alone
+            }
+        }
+
+        if (shouldWipe) {
+            const fullPath = path.join(authRoot, folder);
+            try {
+                fs.rmSync(fullPath, { recursive: true, force: true });
+                console.log(`🗑️  Wiped stale session: ${fullPath}`);
+            } catch (e) {
+                console.error(`⚠️  Could not wipe ${fullPath}:`, e.message);
+            }
+        }
+    }
+}
+
+// Run stale session cleanup before starting the HTTP server
+cleanStaleAuthFolders().catch(e => console.error('⚠️  Stale session cleanup error:', e.message));
+
+
+
 app.get('/health', (req, res) => {
     res.json({
         status: 'ok',
         activeConnections: whatsappClients.size,
+        initializing: [...initializingUsers],
         firebase: firebaseInitialized ? 'connected' : 'disconnected',
+        platform: process.platform,
         uptime: process.uptime(),
         timestamp: new Date().toISOString()
+    });
+});
+
+// Diagnostic endpoint — shows raw client state for debugging
+app.get('/debug/status', (req, res) => {
+    const clients = [];
+    for (const [uid, cd] of whatsappClients) {
+        clients.push({
+            userId: uid,
+            userEmail: cd.userEmail,
+            ready: cd.ready,
+            hasQR: !!cd.qrCode,
+            hasInfo: !!cd.info,
+            lastActivity: new Date(cd.lastActivity).toISOString(),
+            clientAlive: !!cd.client
+        });
+    }
+    res.json({
+        platform: process.platform,
+        isWindows: isWindows,
+        puppeteerArgs: getPuppeteerArgs(),
+        firebaseReady: firebaseInitialized,
+        clients,
+        initializing: [...initializingUsers],
+        memoryMB: Math.round(process.memoryUsage().rss / 1024 / 1024)
     });
 });
 
@@ -465,13 +655,9 @@ app.get('/health', (req, res) => {
 app.get('/api/whatsapp/status/:userId', async (req, res) => {
     try {
         const { userId } = req.params;
-        
+
         if (!userId) {
-            return res.status(400).json({ 
-                error: 'Missing userId parameter',
-                ready: false,
-                hasQR: false
-            });
+            return res.status(400).json({ error: 'Missing userId parameter', ready: false, hasQR: false });
         }
 
         const clientData = whatsappClients.get(userId);
@@ -494,11 +680,7 @@ app.get('/api/whatsapp/status/:userId', async (req, res) => {
         });
     } catch (error) {
         console.error('❌ Error in status endpoint:', error);
-        res.status(500).json({ 
-            error: 'Internal server error',
-            ready: false,
-            hasQR: false
-        });
+        res.status(500).json({ error: 'Internal server error', ready: false, hasQR: false });
     }
 });
 
@@ -508,9 +690,7 @@ app.get('/api/whatsapp/qr/:userId', async (req, res) => {
         const { userId } = req.params;
         const clientData = whatsappClients.get(userId);
 
-        if (!clientData) {
-            return res.json({ qr: null, ready: false });
-        }
+        if (!clientData) return res.json({ qr: null, ready: false });
 
         if (clientData.qrCode) {
             res.json({ qr: clientData.qrCode, ready: false });
@@ -521,11 +701,7 @@ app.get('/api/whatsapp/qr/:userId', async (req, res) => {
         }
     } catch (error) {
         console.error('❌ Error in QR endpoint:', error);
-        res.status(500).json({ 
-            error: 'Failed to get QR code',
-            qr: null,
-            ready: false
-        });
+        res.status(500).json({ error: 'Failed to get QR code', qr: null, ready: false });
     }
 });
 
@@ -551,10 +727,7 @@ app.post('/api/whatsapp/initialize', async (req, res) => {
         });
     } catch (error) {
         console.error('❌ Error initializing WhatsApp:', error);
-        res.status(500).json({
-            success: false,
-            error: error.message || 'Failed to initialize WhatsApp'
-        });
+        res.status(500).json({ success: false, error: error.message || 'Failed to initialize WhatsApp' });
     }
 });
 
@@ -564,15 +737,21 @@ app.post('/api/whatsapp/disconnect/:userId', async (req, res) => {
         const { userId } = req.params;
         const clientData = whatsappClients.get(userId);
 
+        // BUG FIX: was returning success:false when no client found.
+        // Disconnect should be idempotent — if there's nothing to disconnect, that's still success.
         if (!clientData) {
-            return res.json({ 
-                success: false, 
-                error: 'No client found for this user' 
-            });
+            return res.json({ success: true, message: 'No active session to disconnect' });
         }
 
+        // BUG FIX: destroy() is now wrapped in its own try/catch so a Puppeteer crash
+        // doesn't prevent the Map entry from being cleaned up or the response from being sent.
         if (clientData.client) {
-            await clientData.client.destroy();
+            try {
+                await clientData.client.destroy();
+            } catch (destroyError) {
+                console.error('❌ Error during client.destroy():', destroyError);
+                // Continue with cleanup even if destroy() throws
+            }
         }
 
         whatsappClients.delete(userId);
@@ -584,20 +763,15 @@ app.post('/api/whatsapp/disconnect/:userId', async (req, res) => {
                     disconnectedAt: admin.firestore.FieldValue.serverTimestamp()
                 });
             } catch (dbError) {
-                console.error('❌ Error updating Firestore:', dbError);
+                console.error('❌ Error updating Firestore on disconnect:', dbError);
+                // Don't fail the request because of a Firestore error
             }
         }
 
-        res.json({ 
-            success: true, 
-            message: 'WhatsApp disconnected successfully' 
-        });
+        res.json({ success: true, message: 'WhatsApp disconnected successfully' });
     } catch (error) {
         console.error('❌ Error disconnecting WhatsApp:', error);
-        res.status(500).json({ 
-            success: false, 
-            error: error.message || 'Failed to disconnect WhatsApp'
-        });
+        res.status(500).json({ success: false, error: error.message || 'Failed to disconnect WhatsApp' });
     }
 });
 
@@ -605,35 +779,62 @@ app.post('/api/whatsapp/disconnect/:userId', async (req, res) => {
 app.get('/api/whatsapp/connections', async (req, res) => {
     try {
         if (!db) {
-            return res.status(503).json({ 
-                success: false,
-                error: 'Database not available',
-                connections: []
-            });
+            return res.status(503).json({ success: false, error: 'Database not available', connections: [] });
         }
 
         const snapshot = await db.collection('whatsappConnections').get();
         const connections = [];
-        
+
         snapshot.forEach(doc => {
-            connections.push({
-                id: doc.id,
-                ...doc.data()
-            });
+            connections.push({ id: doc.id, ...doc.data() });
         });
 
         res.json({ success: true, connections });
     } catch (error) {
         console.error('❌ Error fetching connections:', error);
-        res.status(500).json({ 
-            success: false, 
-            error: error.message || 'Failed to fetch connections',
-            connections: []
-        });
+        res.status(500).json({ success: false, error: error.message || 'Failed to fetch connections', connections: [] });
     }
 });
 
-// 404 handler
+// Force-reset a user's session — clears auth cache and Map entry so next
+// /initialize call will show a fresh QR code. Use this when stuck in auth loop.
+app.post('/api/whatsapp/reset/:userId', async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const clientData = whatsappClients.get(userId);
+
+        // Destroy live client if present
+        if (clientData?.client) {
+            try { await clientData.client.destroy(); } catch (_) { }
+        }
+        whatsappClients.delete(userId);
+        initializingUsers.delete(userId);
+
+        // Wipe the session folder
+        const authPath = path.join(__dirname, '.wwebjs_auth', `session-${userId}`);
+        if (fs.existsSync(authPath)) {
+            fs.rmSync(authPath, { recursive: true, force: true });
+            console.log(`🗑️  Force-reset auth cache for ${userId}`);
+        }
+
+        if (db) {
+            try {
+                await db.collection('whatsappConnections').doc(userId).update({
+                    connected: false,
+                    disconnectedAt: admin.firestore.FieldValue.serverTimestamp(),
+                    disconnectReason: 'manual_reset'
+                });
+            } catch (_) { }
+        }
+
+        res.json({ success: true, message: 'Session reset — initialize again to get a fresh QR code' });
+    } catch (error) {
+        console.error('❌ Error resetting session:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+
 app.use((req, res) => {
     res.status(404).json({ error: 'Endpoint not found' });
 });
@@ -641,13 +842,14 @@ app.use((req, res) => {
 // Global error handler
 app.use((err, req, res, next) => {
     console.error('❌ Unhandled error:', err);
-    res.status(500).json({ 
+    res.status(500).json({
         error: 'Internal server error',
         message: process.env.NODE_ENV === 'development' ? err.message : undefined
     });
 });
 
-// Start server
+// ─── START SERVER ──────────────────────────────────────────────────────────────
+
 const server = app.listen(PORT, () => {
     console.log(`\n=================================`);
     console.log(`🚀 Multi-User WhatsApp Server`);
@@ -661,7 +863,7 @@ const server = app.listen(PORT, () => {
 // Graceful shutdown
 const gracefulShutdown = async (signal) => {
     console.log(`\n🛑 ${signal} received, shutting down gracefully...`);
-    
+
     server.close(() => {
         console.log('📡 HTTP server closed');
     });
@@ -676,14 +878,13 @@ const gracefulShutdown = async (signal) => {
             }
         }
     }
-    
+
     process.exit(0);
 };
 
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 
-// Handle uncaught errors
 process.on('uncaughtException', (error) => {
     console.error('❌ Uncaught Exception:', error);
     gracefulShutdown('UNCAUGHT_EXCEPTION');

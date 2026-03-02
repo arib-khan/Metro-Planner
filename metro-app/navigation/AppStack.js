@@ -1,4 +1,4 @@
-//navigation\AppStack.js
+// navigation/AppStack.js
 import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
 import HomeScreen from '../screens/HomeScreen';
@@ -11,23 +11,39 @@ export default function AppStack() {
   return (
     <Stack.Navigator
       screenOptions={{
-        headerStyle: { backgroundColor: '#2196F3' },
-        headerTintColor: '#fff',
-        headerTitleStyle: { fontWeight: 'bold' },
+        headerStyle: {
+          backgroundColor: '#0a0f1e',
+          elevation: 0,
+          shadowOpacity: 0,
+          borderBottomWidth: 1,
+          borderBottomColor: '#1e2d45',
+        },
+        headerTintColor: '#f0f4ff',
+        headerTitleStyle: {
+          fontWeight: '700',
+          fontSize: 16,
+          letterSpacing: 0.4,
+          color: '#f0f4ff',
+        },
+        headerBackTitleVisible: false,
+        cardStyle: { backgroundColor: '#0a0f1e' },
       }}
     >
-      <Stack.Screen 
-        name="Home" 
+      <Stack.Screen
+        name="Home"
         component={HomeScreen}
-        options={{ title: 'KMRL Dashboard' }}
+        options={{ headerShown: false }}
       />
-      <Stack.Screen 
-        name="InductionForm" 
+      <Stack.Screen
+        name="InductionForm"
         component={InductionForm}
-        options={{ title: 'Train Induction Form' }}
+        options={{
+          title: 'Train Induction',
+          headerTitleAlign: 'center',
+        }}
       />
-      <Stack.Screen 
-        name="Success" 
+      <Stack.Screen
+        name="Success"
         component={SuccessScreen}
         options={{ headerShown: false }}
       />
