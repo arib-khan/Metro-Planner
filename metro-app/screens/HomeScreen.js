@@ -362,6 +362,10 @@ export default function HomeScreen({ navigation }) {
             <Text style={styles.logoutButtonIcon}>⏻</Text>
             <Text style={styles.logoutButtonText}>Sign Out</Text>
           </TouchableOpacity>
+
+          <TouchableOpacity onPress={() => navigation.navigate('Tasks')}>
+            <Text>My Tasks</Text>
+          </TouchableOpacity>
         </View>
 
         {/* ── Footer ─────────────────────────────────────────────────── */}

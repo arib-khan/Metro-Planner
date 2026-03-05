@@ -4,6 +4,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import HomeScreen from '../screens/HomeScreen';
 import InductionForm from '../screens/InductionForm';
 import SuccessScreen from '../screens/SuccessScreen';
+import TasksScreen from '../screens/TasksScreen';
 
 const Stack = createStackNavigator();
 
@@ -47,6 +48,8 @@ export default function AppStack() {
         component={SuccessScreen}
         options={{ headerShown: false }}
       />
+
+      <Stack.Screen name="Tasks" component={TasksScreen} options={{ title: 'My Tasks' }} />
     </Stack.Navigator>
   );
 }

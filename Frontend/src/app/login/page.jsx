@@ -33,17 +33,17 @@ export default function LoginPage() {
 
     try {
       const userCredential = await login(email, password);
-      
+
       if (!userCredential.user.emailVerified) {
         setError('Please verify your email before logging in. Check your inbox for the verification link.');
         setLoading(false);
         return;
       }
 
-      router.push('/updates');
+      router.push('/dashboard');
     } catch (error) {
       let errorMessage = 'Failed to log in. Please check your credentials.';
-      
+
       if (error.code === 'auth/user-not-found') {
         errorMessage = 'No account found with this email address.';
       } else if (error.code === 'auth/wrong-password') {
@@ -53,7 +53,7 @@ export default function LoginPage() {
       } else if (error.code === 'auth/too-many-requests') {
         errorMessage = 'Too many failed attempts. Please try again later.';
       }
-      
+
       setError(errorMessage);
       setLoading(false);
     }
@@ -71,10 +71,10 @@ export default function LoginPage() {
     try {
       // Authenticate with biometric
       await authenticateWithBiometric(email);
-      
+
       // Get stored password (in production, use secure token-based auth)
       const storedPassword = localStorage.getItem(`pwd_${email}`);
-      
+
       if (!storedPassword) {
         setError('Biometric login not properly configured. Please log in with password.');
         setBiometricLoading(false);
@@ -83,19 +83,19 @@ export default function LoginPage() {
 
       // Log in with stored credentials
       const userCredential = await login(email, storedPassword);
-      
+
       if (!userCredential.user.emailVerified) {
         setError('Please verify your email before logging in.');
         setBiometricLoading(false);
         return;
       }
 
-      router.push('/updates');
+      router.push('/dashboard');
     } catch (error) {
       console.error('Biometric login error:', error);
-      
+
       let errorMessage = 'Biometric authentication failed. Please try logging in with your password.';
-      
+
       if (error.message.includes('not available')) {
         errorMessage = 'Biometric authentication is not available on this device.';
       } else if (error.message.includes('not found')) {
@@ -103,7 +103,7 @@ export default function LoginPage() {
       } else if (error.name === 'NotAllowedError') {
         errorMessage = 'Biometric authentication was cancelled.';
       }
-      
+
       setError(errorMessage);
       setBiometricLoading(false);
     }

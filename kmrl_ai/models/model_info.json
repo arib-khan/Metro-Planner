@@ -1,0 +1,18 @@
+{
+  "status": "trained",
+  "n_samples": 50,
+  "mae_minutes": 0.77,
+  "r2_score": 0.968,
+  "trained_at": "2026-03-03T00:38:52.152016",
+  "feature_importance": {
+    "cert_days_remaining": 0.2,
+    "mileage_km": 0.042,
+    "had_maintenance": 0.048,
+    "day_of_week": 0.026,
+    "hour_of_day": 0.019,
+    "demand_level_enc": 0.009,
+    "direction_enc": 0.003,
+    "weather_code": 0.006,
+    "incident_flag": 0.647
+  }
+}

@@ -24,29 +24,25 @@ export const AuthContextProvider = ({ children }) => {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        // Check if user document exists, create if not
         await ensureUserDocument(user);
-        // Update last login
         await updateLastLogin(user.uid);
       }
       setUser(user);
       setLoading(false);
     });
 
-    // Check if biometric authentication is available
     checkBiometricAvailability();
 
     return () => unsubscribe();
   }, []);
 
-  // Ensure user document exists in Firestore
+  // If a web user somehow signs in without a Firestore doc, create one
   const ensureUserDocument = async (user) => {
     try {
       const userDocRef = doc(db, 'users', user.uid);
       const userDoc = await getDoc(userDocRef);
 
       if (!userDoc.exists()) {
-        // Create user document if it doesn't exist
         await setDoc(userDocRef, {
           uid: user.uid,
           email: user.email,
@@ -54,26 +50,25 @@ export const AuthContextProvider = ({ children }) => {
           emailVerified: user.emailVerified,
           isBlocked: false,
           role: 'user',
+          appType: 'web',         // ← KEY FLAG: identifies this as a web app user
           createdAt: serverTimestamp(),
           lastLoginAt: serverTimestamp(),
           metadata: {
             creationTime: user.metadata.creationTime,
-            lastSignInTime: user.metadata.lastSignInTime
-          }
+            lastSignInTime: user.metadata.lastSignInTime,
+          },
         });
-        console.log('User document created for:', user.email);
       }
     } catch (error) {
       console.error('Error ensuring user document:', error);
     }
   };
 
-  // Update last login timestamp
   const updateLastLogin = async (uid) => {
     try {
       const userDocRef = doc(db, 'users', uid);
       await updateDoc(userDocRef, {
-        lastLoginAt: serverTimestamp()
+        lastLoginAt: serverTimestamp(),
       });
     } catch (error) {
       console.error('Error updating last login:', error);
@@ -86,7 +81,6 @@ export const AuthContextProvider = ({ children }) => {
         const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
         setBiometricAvailable(available);
       } catch (error) {
-        console.error('Error checking biometric availability:', error);
         setBiometricAvailable(false);
       }
     }
@@ -96,7 +90,8 @@ export const AuthContextProvider = ({ children }) => {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
 
-      // Create user document in Firestore
+      // Create Firestore user document, tagged as a web user
+      // The user management page filters by appType: 'mobile', so web users are excluded
       await setDoc(doc(db, 'users', userCredential.user.uid), {
         uid: userCredential.user.uid,
         email: email,
@@ -104,15 +99,15 @@ export const AuthContextProvider = ({ children }) => {
         emailVerified: false,
         isBlocked: false,
         role: 'user',
+        appType: 'web',           // ← KEY FLAG: identifies this as a web app user
         createdAt: serverTimestamp(),
         lastLoginAt: serverTimestamp(),
         metadata: {
           creationTime: userCredential.user.metadata.creationTime,
-          lastSignInTime: userCredential.user.metadata.lastSignInTime
-        }
+          lastSignInTime: userCredential.user.metadata.lastSignInTime,
+        },
       });
 
-      // Send email verification
       await sendEmailVerification(userCredential.user);
 
       return userCredential;
@@ -126,7 +121,7 @@ export const AuthContextProvider = ({ children }) => {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
 
-      // Check if user is blocked
+      // Block check
       const userDocRef = doc(db, 'users', userCredential.user.uid);
       const userDoc = await getDoc(userDocRef);
 
@@ -146,110 +141,91 @@ export const AuthContextProvider = ({ children }) => {
     return signOut(auth);
   };
 
-  // Register biometric credential for a user
+  // ── Biometric helpers (unchanged) ─────────────────────────────────────────
+
   const registerBiometric = async (email) => {
     if (!biometricAvailable) {
       throw new Error('Biometric authentication is not available on this device');
     }
 
-    try {
-      // Generate a challenge (in production, this should come from your server)
-      const challenge = new Uint8Array(32);
-      window.crypto.getRandomValues(challenge);
+    const challenge = new Uint8Array(32);
+    window.crypto.getRandomValues(challenge);
 
-      // Create credential options
-      const publicKeyCredentialCreationOptions = {
-        challenge,
-        rp: {
-          name: "Railway System",
-          id: window.location.hostname,
-        },
-        user: {
-          id: new TextEncoder().encode(email),
-          name: email,
-          displayName: email,
-        },
-        pubKeyCredParams: [
-          { alg: -7, type: "public-key" },  // ES256
-          { alg: -257, type: "public-key" } // RS256
-        ],
-        authenticatorSelection: {
-          authenticatorAttachment: "platform",
-          userVerification: "required",
-        },
-        timeout: 60000,
-        attestation: "none"
-      };
+    const publicKeyCredentialCreationOptions = {
+      challenge,
+      rp: {
+        name: 'Railway System',
+        id: window.location.hostname,
+      },
+      user: {
+        id: new TextEncoder().encode(email),
+        name: email,
+        displayName: email,
+      },
+      pubKeyCredParams: [
+        { alg: -7, type: 'public-key' },
+        { alg: -257, type: 'public-key' },
+      ],
+      authenticatorSelection: {
+        authenticatorAttachment: 'platform',
+        userVerification: 'required',
+      },
+      timeout: 60000,
+      attestation: 'none',
+    };
 
-      const credential = await navigator.credentials.create({
-        publicKey: publicKeyCredentialCreationOptions
-      });
+    const credential = await navigator.credentials.create({
+      publicKey: publicKeyCredentialCreationOptions,
+    });
 
-      // Store credential in localStorage (in production, store on server)
-      const credentialData = {
-        id: credential.id,
-        rawId: Array.from(new Uint8Array(credential.rawId)),
-        type: credential.type,
-        email: email
-      };
+    const credentialData = {
+      id: credential.id,
+      rawId: Array.from(new Uint8Array(credential.rawId)),
+      type: credential.type,
+      email: email,
+    };
 
-      localStorage.setItem(`biometric_${email}`, JSON.stringify(credentialData));
-
-      return credential;
-    } catch (error) {
-      console.error('Error registering biometric:', error);
-      throw error;
-    }
+    localStorage.setItem(`biometric_${email}`, JSON.stringify(credentialData));
+    return credential;
   };
 
-  // Authenticate using biometric
   const authenticateWithBiometric = async (email) => {
     if (!biometricAvailable) {
       throw new Error('Biometric authentication is not available on this device');
     }
 
-    try {
-      // Check if credential exists
-      const storedCredential = localStorage.getItem(`biometric_${email}`);
-      if (!storedCredential) {
-        throw new Error('No biometric credential found for this email');
-      }
-
-      const credentialData = JSON.parse(storedCredential);
-
-      // Generate a challenge (in production, this should come from your server)
-      const challenge = new Uint8Array(32);
-      window.crypto.getRandomValues(challenge);
-
-      // Get credential options
-      const publicKeyCredentialRequestOptions = {
-        challenge,
-        allowCredentials: [{
-          id: new Uint8Array(credentialData.rawId),
-          type: 'public-key',
-          transports: ['internal']
-        }],
-        timeout: 60000,
-        userVerification: "required"
-      };
-
-      const assertion = await navigator.credentials.get({
-        publicKey: publicKeyCredentialRequestOptions
-      });
-
-      return assertion;
-    } catch (error) {
-      console.error('Error authenticating with biometric:', error);
-      throw error;
+    const storedCredential = localStorage.getItem(`biometric_${email}`);
+    if (!storedCredential) {
+      throw new Error('No biometric credential found for this email');
     }
+
+    const credentialData = JSON.parse(storedCredential);
+
+    const challenge = new Uint8Array(32);
+    window.crypto.getRandomValues(challenge);
+
+    const publicKeyCredentialRequestOptions = {
+      challenge,
+      allowCredentials: [{
+        id: new Uint8Array(credentialData.rawId),
+        type: 'public-key',
+        transports: ['internal'],
+      }],
+      timeout: 60000,
+      userVerification: 'required',
+    };
+
+    const assertion = await navigator.credentials.get({
+      publicKey: publicKeyCredentialRequestOptions,
+    });
+
+    return assertion;
   };
 
-  // Check if biometric is registered for email
   const isBiometricRegistered = (email) => {
     return localStorage.getItem(`biometric_${email}`) !== null;
   };
 
-  // Remove biometric credential
   const removeBiometric = (email) => {
     localStorage.removeItem(`biometric_${email}`);
   };
@@ -265,7 +241,7 @@ export const AuthContextProvider = ({ children }) => {
       registerBiometric,
       authenticateWithBiometric,
       isBiometricRegistered,
-      removeBiometric
+      removeBiometric,
     }}>
       {children}
     </AuthContext.Provider>

@@ -19,6 +19,7 @@ const Navbar = () => {
     // { name: 'Simulation', href: '/simulation', icon: Users },
     { name: 'Updates', href: '/updates', icon: FileText },
     { name: 'inspection', href: '/inspection', icon: Wrench },
+    { name: 'Users', href: '/users', icon: Users },
   ];
 
   const isActive = (path) => {
@@ -65,8 +66,8 @@ const Navbar = () => {
                   key={item.name}
                   href={item.href}
                   className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center transition-colors ${isActive(item.href)
-                      ? 'bg-gray-900 text-white'
-                      : 'text-gray-700 hover:bg-gray-100'
+                    ? 'bg-gray-900 text-white'
+                    : 'text-gray-700 hover:bg-gray-100'
                     }`}
                 >
                   <Icon className="h-4 w-4 mr-2" />
@@ -126,8 +127,8 @@ const Navbar = () => {
                     href={item.href}
                     onClick={() => setIsMobileMenuOpen(false)}
                     className={`px-4 py-3 rounded-lg text-sm font-medium flex items-center transition-colors ${isActive(item.href)
-                        ? 'bg-gray-900 text-white'
-                        : 'text-gray-700 hover:bg-gray-100'
+                      ? 'bg-gray-900 text-white'
+                      : 'text-gray-700 hover:bg-gray-100'
                       }`}
                   >
                     <Icon className="h-4 w-4 mr-3" />

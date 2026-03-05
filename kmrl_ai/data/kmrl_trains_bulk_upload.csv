@@ -1,0 +1,31 @@
+train_id,date,rolling_stock_certificate,signalling_certificate,telecom_certificate,certificate_expiry,current_mileage,branding_type,priority_level,exposure_minutes,valid_from,valid_to,approved_by,cleaning_type,cleaning_start,cleaning_end,assigned_team,depot,track_no,berth,orientation,distance_from_buffer_m,remarks,job_id,job_description,work_order_status,priority
+KMRL-1,2026-02-28,Valid,Valid,Valid,2026-12-31,312450,Election Awareness,1,5400,2026-02-01,2026-03-31,Marketing Dept,Daily Clean,23:00,23:45,Team A,Muttom,1,A1,UP,4.2,Safe clearance maintained,JC-4001,Brake pad inspection,Open,High
+KMRL-2,2026-02-28,Valid,Valid,Valid,2026-11-30,298760,Tourism,2,3600,2026-02-15,2026-03-15,GM Office,Daily Clean,23:00,23:45,Team B,Muttom,2,A2,DN,3.8,All clear,,,Completed,Low
+KMRL-3,2026-02-28,Valid,Valid,Valid,2026-10-15,275340,None,,,,,Marketing Dept,Daily Clean,23:00,23:45,Team A,Muttom,3,B1,UP,5.1,Normal stabling,,,,
+KMRL-4,2026-02-28,Valid,Valid,Valid,2026-12-31,334120,Government Campaign,1,7200,2026-01-15,2026-03-31,Operations,Detailing,22:00,23:30,Detail Squad,Kalamassery,4,B2,DN,4.0,Safe clearance maintained,JC-4002,Pantograph wire check,Open,Medium
+KMRL-5,2026-02-28,Valid,Valid,Valid,2026-09-30,289500,None,,,,,Marketing Dept,Daily Clean,23:00,23:45,Team B,Kalamassery,5,C1,UP,4.5,All clear,JC-4003,HVAC filter replacement,Pending,Medium
+KMRL-6,2026-02-28,Valid,Valid,Valid,2026-12-31,301870,Commercial,3,2400,2026-02-20,2026-02-28,Marketing Dept,Daily Clean,23:00,23:45,Team A,Muttom,6,C2,DN,3.5,Normal stabling,,,Completed,Low
+KMRL-7,2026-02-28,Valid,Valid,Valid,2026-11-15,267890,Election Awareness,1,5400,2026-02-01,2026-03-31,Marketing Dept,Weekly Maintenance,22:00,23:59,Maintenance Team,Muttom,7,A3,UP,4.8,Scheduled maintenance,JC-4004,Door sensor calibration,Open,High
+KMRL-8,2026-02-28,Valid,Valid,Valid,2026-12-31,345230,None,,,,,GM Office,Daily Clean,23:00,23:45,Team B,Kalamassery,1,A1,DN,4.1,Safe clearance maintained,,,,
+KMRL-9,2026-02-28,Valid,Valid,Valid,2026-08-31,258760,Tourism,2,3600,2026-02-10,2026-03-10,Operations,Daily Clean,23:00,23:45,Team A,Kalamassery,2,A2,UP,5.3,All clear,JC-4005,Traction motor inspection,Open,High
+KMRL-10,2026-02-28,Valid,Valid,Valid,2026-12-31,378900,Government Campaign,2,4800,2026-02-01,2026-04-30,GM Office,Detailing,22:00,23:30,Detail Squad,Muttom,8,B3,DN,3.9,Normal stabling,,,,
+KMRL-11,2026-02-28,Valid,Valid,Valid,2026-10-31,291340,None,,,,,Marketing Dept,Daily Clean,23:00,23:45,Team B,Muttom,1,B1,UP,4.6,Safe clearance maintained,JC-4006,Brake fluid level check,Pending,Low
+KMRL-12,2026-02-28,Valid,Valid,Valid,2026-12-31,315670,Commercial,3,1800,2026-02-25,2026-03-25,Marketing Dept,Daily Clean,23:00,23:45,Team A,Kalamassery,3,B2,DN,4.3,All clear,,,,
+KMRL-13,2026-02-28,Valid,Valid,Valid,2026-07-31,243560,Election Awareness,1,6000,2026-02-01,2026-03-31,Operations,Daily Clean,23:00,23:45,Team B,Kalamassery,4,C1,UP,4.0,Normal stabling,JC-4007,Wheel flange measurement,Open,Medium
+KMRL-14,2026-02-28,Valid,Valid,Valid,2026-12-31,362100,None,,,,,GM Office,Weekly Maintenance,22:00,23:59,Maintenance Team,Muttom,2,C2,DN,5.0,Scheduled maintenance,,,,
+KMRL-15,2026-02-28,Valid,Valid,Valid,2026-11-30,287450,Tourism,2,4200,2026-02-05,2026-03-05,Marketing Dept,Daily Clean,23:00,23:45,Team A,Muttom,3,A1,UP,3.7,Safe clearance maintained,JC-4008,Air conditioning service,Completed,Medium
+KMRL-16,2026-02-28,Valid,Valid,Valid,2026-12-31,329870,Government Campaign,1,7200,2026-01-01,2026-04-30,GM Office,Daily Clean,23:00,23:45,Team B,Kalamassery,5,A2,DN,4.4,All clear,,,,
+KMRL-17,2026-02-28,Valid,Valid,Valid,2026-09-15,271230,None,,,,,Marketing Dept,Detailing,22:00,23:30,Detail Squad,Kalamassery,6,B1,UP,4.9,Normal stabling,JC-4009,Emergency lighting test,Open,Low
+KMRL-18,2026-02-28,Valid,Valid,Valid,2026-12-31,356780,Commercial,2,3000,2026-02-18,2026-03-18,Operations,Daily Clean,23:00,23:45,Team A,Muttom,4,B2,DN,3.6,Safe clearance maintained,,,,
+KMRL-19,2026-02-28,Valid,Valid,Valid,2026-10-31,284320,Election Awareness,2,4800,2026-02-01,2026-03-31,Marketing Dept,Daily Clean,23:00,23:45,Team B,Muttom,5,C1,UP,4.2,All clear,JC-4010,Coupling mechanism check,Pending,High
+KMRL-20,2026-02-28,Valid,Valid,Valid,2026-12-31,398450,None,,,,,GM Office,Daily Clean,23:00,23:45,Team A,Kalamassery,7,C2,DN,5.2,Normal stabling,,,,
+KMRL-21,2026-02-28,Valid,Valid,Valid,2026-06-30,231870,Tourism,3,2400,2026-02-12,2026-03-12,Marketing Dept,Weekly Maintenance,22:00,23:59,Maintenance Team,Kalamassery,1,A3,UP,4.7,Scheduled maintenance,JC-4011,Speedometer calibration,Open,Medium
+KMRL-22,2026-02-28,Valid,Valid,Valid,2026-12-31,343210,Government Campaign,2,5400,2026-01-20,2026-03-20,Operations,Daily Clean,23:00,23:45,Team B,Muttom,6,A1,DN,4.1,Safe clearance maintained,,,,
+KMRL-23,2026-02-28,Valid,Valid,Valid,2026-11-15,296540,None,,,,,GM Office,Daily Clean,23:00,23:45,Team A,Muttom,7,A2,UP,3.8,All clear,JC-4012,Windshield wiper inspection,Completed,Low
+KMRL-24,2026-02-28,Valid,Valid,Valid,2026-12-31,367890,Commercial,1,6600,2026-02-22,2026-03-22,Marketing Dept,Detailing,22:00,23:30,Detail Squad,Kalamassery,2,B3,DN,4.6,Normal stabling,,,,
+KMRL-25,2026-02-28,Valid,Valid,Valid,2026-08-15,255430,Election Awareness,1,7200,2026-02-01,2026-03-31,GM Office,Daily Clean,23:00,23:45,Team B,Kalamassery,3,B1,UP,5.0,Safe clearance maintained,JC-4013,Passenger door seal replacement,Open,High
+KMRL-26,2026-02-28,Valid,Valid,Valid,2026-12-31,321560,Tourism,2,3600,2026-02-08,2026-03-08,Operations,Daily Clean,23:00,23:45,Team A,Muttom,8,B2,DN,3.9,All clear,,,,
+KMRL-27,2026-02-28,Valid,Valid,Valid,2026-10-31,278900,None,,,,,Marketing Dept,Daily Clean,23:00,23:45,Team B,Muttom,1,C1,UP,4.3,Normal stabling,JC-4014,Fire suppression system test,Pending,Medium
+KMRL-28,2026-02-28,Valid,Valid,Valid,2026-12-31,389120,Government Campaign,1,7200,2026-01-10,2026-04-10,GM Office,Weekly Maintenance,22:00,23:59,Maintenance Team,Kalamassery,4,C2,DN,4.8,Scheduled maintenance,,,,
+KMRL-29,2026-02-28,Valid,Valid,Valid,2026-09-30,263450,Commercial,3,2400,2026-02-28,2026-03-28,Marketing Dept,Daily Clean,23:00,23:45,Team A,Kalamassery,5,A1,UP,4.5,Safe clearance maintained,JC-4015,Battery voltage check,Open,Low
+KMRL-30,2026-02-28,Valid,Valid,Valid,2026-12-31,415670,None,,,,,Operations,Daily Clean,23:00,23:45,Team B,Muttom,2,A2,DN,4.0,All clear,,,,
