@@ -834,6 +834,67 @@ app.post('/api/whatsapp/reset/:userId', async (req, res) => {
     }
 });
 
+// ─── SEND WHATSAPP MESSAGE ────────────────────────────────────────────────────
+// Used by the Job Cards page to notify staff about assigned job cards.
+// Body: { userId, phone, message }
+// userId: the logged-in web admin's uid (used to find their connected WhatsApp client)
+// phone:  recipient phone number — digits only, e.g. "919876543201"
+// message: text to send
+app.post('/api/whatsapp/send', async (req, res) => {
+    try {
+        const { userId, phone, message } = req.body;
+
+        if (!userId || !phone || !message) {
+            return res.status(400).json({ success: false, error: 'userId, phone and message are required' });
+        }
+
+        // Find the sender's connected WhatsApp client
+        const clientData = whatsappClients.get(userId);
+
+        if (!clientData) {
+            return res.status(404).json({ success: false, error: 'No WhatsApp client found for this user. Please connect WhatsApp first.' });
+        }
+
+        if (!clientData.ready) {
+            return res.status(400).json({ success: false, error: 'WhatsApp is not ready. Please scan the QR code first.' });
+        }
+
+        // Format phone number — WhatsApp expects digits + @c.us
+        const cleanPhone = phone.toString().replace(/\D/g, '');
+        const chatId = cleanPhone.includes('@c.us') ? cleanPhone : `${cleanPhone}@c.us`;
+
+        // Check if number exists on WhatsApp before sending
+        // This resolves the "No LID for user" error for unsaved contacts
+        const isRegistered = await clientData.client.isRegisteredUser(chatId);
+
+        if (!isRegistered) {
+            return res.status(400).json({
+                success: false,
+                error: `Phone number ${cleanPhone} is not registered on WhatsApp`
+            });
+        }
+
+        // Get the number ID properly — avoids "No LID" error
+        const numberId = await clientData.client.getNumberId(cleanPhone);
+
+        if (!numberId) {
+            return res.status(400).json({
+                success: false,
+                error: `Could not resolve WhatsApp ID for ${cleanPhone}`
+            });
+        }
+
+        await clientData.client.sendMessage(numberId._serialized, message);
+
+        console.log(`✅ Sent WhatsApp message to ${cleanPhone} via user ${userId}`);
+        res.json({ success: true, message: 'Message sent successfully' });
+
+    } catch (error) {
+        console.error('❌ Error sending WhatsApp message:', error);
+        res.status(500).json({ success: false, error: error.message || 'Failed to send message' });
+    }
+});
+
 
 app.use((req, res) => {
     res.status(404).json({ error: 'Endpoint not found' });

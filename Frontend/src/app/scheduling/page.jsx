@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { collection, onSnapshot, query, where, getDocs } from 'firebase/firestore';
 import { db, waitForAuthReady } from '../firebase/config';
-import { Calendar, Clock, Wrench, TrendingUp, MapPin, RefreshCw, Download, ChevronDown, ChevronUp, X } from 'lucide-react';
+import { Calendar, Clock, Wrench, TrendingUp, MapPin, RefreshCw, Download, ChevronDown, ChevronUp, X, ShieldAlert, AlertTriangle } from 'lucide-react';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Station data — 24 stations with realistic cumulative travel times from Aluva
@@ -136,10 +136,12 @@ const computeStationTimetable = (departureMin, direction) => {
 // RESULT: Each train appears in the schedule with strictly alternating NB/SB trips.
 //   No train ever repeats the same direction without first completing the return.
 // ─────────────────────────────────────────────────────────────────────────────
-const buildSchedule = (fleet) => {
-  const fit = fleet.filter(t => t.isFit);
-  const unfit = fleet.filter(t => !t.isFit && t.hasMasterData);
-  const noData = fleet.filter(t => !t.hasMasterData);
+const buildSchedule = (fleet, blockedTrainIds = new Set()) => {
+  // Trains with unresolved high-priority jobs are pulled from service entirely
+  const fit = fleet.filter(t => t.isFit && !blockedTrainIds.has(t.train_id));
+  const blocked = fleet.filter(t => blockedTrainIds.has(t.train_id)); // fitness irrelevant — job blocks them
+  const unfit = fleet.filter(t => !t.isFit && t.hasMasterData && !blockedTrainIds.has(t.train_id));
+  const noData = fleet.filter(t => !t.hasMasterData && !blockedTrainIds.has(t.train_id));
 
   // All trips across all trains — each trip is one one-way run
   const allTrips = [];
@@ -207,6 +209,11 @@ const buildSchedule = (fleet) => {
 
   // Maintenance / no-data rows
   const staticRows = [];
+  blocked.forEach(train => staticRows.push({
+    trainId: train.train_id, departure: '—', arrival: '—',
+    route: 'Blocked — High Priority Job Pending', direction: '—', status: 'Job Blocked',
+    bay: 'Grounded', depot: train.depot, mileage: train.mileage, stops: [],
+  }));
   unfit.forEach(train => staticRows.push({
     trainId: train.train_id, departure: '—', arrival: '—',
     route: 'Under Maintenance', direction: '—', status: 'Maintenance',
@@ -218,7 +225,7 @@ const buildSchedule = (fleet) => {
     bay: '—', depot: '—', mileage: null, stops: [],
   }));
 
-  return { allTrips, staticRows, ganttRows };
+  return { allTrips, staticRows, ganttRows, blockedCount: blocked.length };
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -354,6 +361,8 @@ export default function Scheduling() {
   const [allTrips, setAllTrips] = useState([]);
   const [staticRows, setStaticRows] = useState([]);
   const [ganttRows, setGanttRows] = useState([]);
+  const [blockedJobs, setBlockedJobs] = useState([]);      // high-priority unresolved job card tasks
+  const [blockedTrainIds, setBlockedTrainIds] = useState(new Set()); // derived set of train IDs
   const [isGenerating, setIsGenerating] = useState(false);
   const [scheduleDate, setScheduleDate] = useState(todayStr());
   const [dirFilter, setDirFilter] = useState('All');
@@ -366,6 +375,28 @@ export default function Scheduling() {
   useEffect(() => {
     waitForAuthReady().then(u => { setCurrentUser(u); setAuthReady(true); });
   }, []);
+
+  // ── Live high-priority job card listener — blocks trains in real time ─────
+  // Any task with priority=high AND status != completed AND a sourceTrainId
+  // will ground that train — it won't appear in the schedule at all.
+  useEffect(() => {
+    if (!authReady || !currentUser || !db) return;
+    const q = query(
+      collection(db, 'tasks'),
+      where('isJobCard', '==', true),
+      where('priority', '==', 'high')
+    );
+    const unsub = onSnapshot(q, snap => {
+      const jobs = [];
+      snap.forEach(d => {
+        const t = { id: d.id, ...d.data() };
+        if (t.status !== 'completed' && t.sourceTrainId) jobs.push(t);
+      });
+      setBlockedJobs(jobs);
+      setBlockedTrainIds(new Set(jobs.map(j => j.sourceTrainId)));
+    }, err => console.error('[job-block]', err));
+    return () => unsub();
+  }, [authReady, currentUser]);
 
   // ── Live master data ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -418,11 +449,11 @@ export default function Scheduling() {
   }), [masterData, dailyDocs, scheduleDate]);
 
   // ── Auto-regenerate ───────────────────────────────────────────────────────
-  useEffect(() => { if (!loadingData) regenerate(); }, [fleet]); // eslint-disable-line
+  useEffect(() => { if (!loadingData) regenerate(); }, [fleet, blockedTrainIds]); // eslint-disable-line
 
   const regenerate = () => {
     setIsGenerating(true);
-    const result = buildSchedule(fleet);
+    const result = buildSchedule(fleet, blockedTrainIds);
     setAllTrips(result.allTrips);
     setStaticRows(result.staticRows);
     setGanttRows(result.ganttRows);
@@ -432,6 +463,7 @@ export default function Scheduling() {
   // ── Metrics ───────────────────────────────────────────────────────────────
   const fitTotal = fleet.filter(t => t.isFit).length;
   const maintenanceCount = fleet.filter(t => !t.isFit && t.hasMasterData).length;
+  const jobBlockedCount = blockedTrainIds.size;
   const activeTrains = new Set(allTrips.map(t => t.trainId)).size;
   const totalTrips = allTrips.length;
   const efficiency = fitTotal > 0 ? ((activeTrains / fitTotal) * 100).toFixed(0) : '0';
@@ -450,7 +482,8 @@ export default function Scheduling() {
 
   const getStatusColor = (status) => ({
     'On Time': 'bg-gray-900 text-white',
-    'Maintenance': 'bg-red-100 text-red-700 border border-red-300',
+    'Job Blocked': 'bg-red-100 text-red-700 border border-red-300',
+    'Maintenance': 'bg-orange-100 text-orange-700 border border-orange-200',
     'No Data': 'bg-gray-100 text-gray-400 border border-gray-200',
   }[status] || 'bg-gray-500 text-white');
 
@@ -540,19 +573,51 @@ export default function Scheduling() {
             )}
           </div>
 
+          {/* ── Job Block Alert Banner ────────────────────────────────── */}
+          {blockedJobs.length > 0 && (
+            <div className="mb-6 bg-red-600 text-white rounded-xl shadow-lg overflow-hidden">
+              <div className="flex items-start gap-3 p-4">
+                <AlertTriangle className="h-6 w-6 flex-shrink-0 mt-0.5 animate-pulse" />
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-base">
+                    🚨 {blockedTrainIds.size} Train{blockedTrainIds.size > 1 ? 's' : ''} Removed from Service
+                  </p>
+                  <p className="text-red-100 text-sm mt-0.5">
+                    Unresolved High priority job cards — these trains are grounded until all jobs are marked complete.
+                  </p>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                    {blockedJobs.map(j => (
+                      <div key={j.id} className="bg-red-700/60 border border-red-500 rounded-lg px-3 py-2 text-xs">
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <span className="font-bold text-white">{j.sourceTrainId}</span>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${j.status === 'in_progress' ? 'bg-amber-400 text-amber-900' : 'bg-red-400 text-white'}`}>
+                            {j.status === 'in_progress' ? 'In Progress' : 'Pending'}
+                          </span>
+                        </div>
+                        <p className="text-red-100 truncate">{j.title}</p>
+                        {j.sourceJobCardId && <p className="text-red-300 mt-0.5">{j.sourceJobCardId}{j.dueDate ? ` · Due ${j.dueDate}` : ''}</p>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* ── KPIs ─────────────────────────────────────────────────────── */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
             {[
-              { label: 'Active Trains', value: activeTrains, sub: `${totalTrips} trips today`, icon: <Calendar className="h-5 w-5 text-gray-400" />, color: 'text-green-600' },
-              { label: 'Fit for Service', value: fitTotal, sub: `${fitTotal}/30 certified`, icon: <TrendingUp className="h-5 w-5 text-gray-400" />, color: 'text-blue-600' },
-              { label: 'In Maintenance', value: maintenanceCount, sub: 'Unfit — certs expired/missing', icon: <Wrench className="h-5 w-5 text-gray-400" />, color: 'text-red-600' },
-              { label: 'Fleet Efficiency', value: `${efficiency}%`, sub: 'Strict NB↔SB alternation', icon: <Clock className="h-5 w-5 text-gray-400" />, color: 'text-green-600' },
-            ].map(({ label, value, sub, icon, color }) => (
-              <div key={label} className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+              { label: 'Active Trains', value: activeTrains, sub: `${totalTrips} trips today`, icon: <Calendar className="h-5 w-5 text-gray-400" />, color: 'text-green-600', highlight: false },
+              { label: 'Fit for Service', value: fitTotal, sub: `${fitTotal}/30 certified`, icon: <TrendingUp className="h-5 w-5 text-gray-400" />, color: 'text-blue-600', highlight: false },
+              { label: 'In Maintenance', value: maintenanceCount, sub: 'Certs expired/missing', icon: <Wrench className="h-5 w-5 text-gray-400" />, color: 'text-orange-600', highlight: false },
+              { label: 'Job Blocked', value: jobBlockedCount, sub: jobBlockedCount > 0 ? 'High priority jobs open' : 'All clear', icon: <ShieldAlert className="h-5 w-5 text-gray-400" />, color: jobBlockedCount > 0 ? 'text-red-600' : 'text-green-600', highlight: jobBlockedCount > 0 },
+              { label: 'Fleet Efficiency', value: `${efficiency}%`, sub: 'Strict NB↔SB alternation', icon: <Clock className="h-5 w-5 text-gray-400" />, color: 'text-green-600', highlight: false },
+            ].map(({ label, value, sub, icon, color, highlight }) => (
+              <div key={label} className={`p-6 rounded-lg shadow-sm border ${highlight ? 'bg-red-50 border-red-300' : 'bg-white border-gray-200'}`}>
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm text-gray-600">{label}</span>{icon}
                 </div>
-                <div className="text-3xl font-bold text-gray-900">{value}</div>
+                <div className={`text-3xl font-bold ${highlight ? 'text-red-700' : 'text-gray-900'}`}>{value}</div>
                 <div className={`text-xs mt-1 ${color}`}>{sub}</div>
               </div>
             ))}
@@ -628,14 +693,19 @@ export default function Scheduling() {
                     </tr>
                   ))}
 
-                  {/* Maintenance / no-data rows */}
+                  {/* Maintenance / no-data / job-blocked rows */}
                   {staticRows.map((r, i) => (
-                    <tr key={`s${i}`} className="border-b border-gray-50 bg-gray-50/50">
-                      <td className="py-2.5 px-3 font-semibold text-gray-500 whitespace-nowrap">{r.trainId}</td>
+                    <tr key={`s${i}`} className={`border-b ${r.status === 'Job Blocked' ? 'bg-red-50/70' : 'bg-gray-50/50'}`}>
+                      <td className="py-2.5 px-3 font-semibold whitespace-nowrap">
+                        <span className={`flex items-center gap-1.5 ${r.status === 'Job Blocked' ? 'text-red-700' : 'text-gray-500'}`}>
+                          {r.status === 'Job Blocked' && <ShieldAlert className="h-3.5 w-3.5 text-red-500 flex-shrink-0" />}
+                          {r.trainId}
+                        </span>
+                      </td>
                       <td className="py-2.5 px-3 text-gray-400 text-xs">—</td>
                       <td className="py-2.5 px-3 text-gray-400 text-xs">—</td>
                       <td className="py-2.5 px-3 text-gray-300 text-xs">—</td>
-                      <td className="py-2.5 px-3 text-gray-500 text-xs">{r.route}</td>
+                      <td className={`py-2.5 px-3 text-xs ${r.status === 'Job Blocked' ? 'text-red-600 font-medium' : 'text-gray-500'}`}>{r.route}</td>
                       <td className="py-2.5 px-3">
                         <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${getStatusColor(r.status)}`}>
                           {r.status}
@@ -667,6 +737,7 @@ export default function Scheduling() {
               <div className="flex items-center gap-4 text-xs text-gray-500">
                 <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-blue-500 inline-block" /> ↑ NB</span>
                 <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-emerald-500 inline-block" /> ↓ SB</span>
+                <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-red-400 inline-block" /> Job Blocked</span>
                 <span className="text-gray-400">Each bar = one 55-min trip · Strictly alternating NB↔SB per train</span>
               </div>
             </div>
@@ -682,7 +753,7 @@ export default function Scheduling() {
             <div className="mb-3 ml-20 h-px bg-gray-100" />
 
             <div className="space-y-1.5 max-h-[560px] overflow-y-auto">
-              {ganttRows.length === 0 && (
+              {ganttRows.length === 0 && blockedTrainIds.size === 0 && (
                 <p className="text-sm text-gray-300 text-center py-10">Generate schedule to see timeline.</p>
               )}
               {ganttRows.map(({ train, trips }) => (
@@ -695,7 +766,6 @@ export default function Scheduling() {
                     <div className="absolute inset-y-0 bg-gray-100 opacity-40"
                       style={{ left: pct(OP_START_MIN), width: pct(OP_END_MIN - OP_START_MIN) }} />
                     {trips.map((trip, ti) => {
-                      // Verify strict alternation for tooltip
                       const prevDir = ti > 0 ? trips[ti - 1].direction : null;
                       const sameAsPrev = prevDir && prevDir === trip.direction;
                       return (
@@ -713,10 +783,28 @@ export default function Scheduling() {
                   <span className="text-xs text-gray-400 w-8 text-right flex-shrink-0">{trips.length}×</span>
                 </div>
               ))}
+              {/* Job-blocked trains shown as solid red bars across the full operating window */}
+              {[...blockedTrainIds].sort().map(tid => (
+                <div key={tid} className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-red-500 w-16 text-right flex-shrink-0 flex items-center justify-end gap-1">
+                    <ShieldAlert className="h-3 w-3" />{tid}
+                  </span>
+                  <div className="flex-1 h-6 bg-red-50 rounded relative border border-red-200 overflow-hidden">
+                    <div
+                      className="absolute inset-y-0.5 rounded-sm bg-red-400/70 flex items-center justify-center"
+                      style={{ left: pct(OP_START_MIN), width: pct(OP_END_MIN - OP_START_MIN) }}
+                      title={`${tid} — Grounded. High priority job pending.`}
+                    >
+                      <span className="text-[10px] font-bold text-red-800 tracking-wide select-none">GROUNDED — JOB PENDING</span>
+                    </div>
+                  </div>
+                  <span className="text-xs text-red-400 w-8 text-right flex-shrink-0">0×</span>
+                </div>
+              ))}
             </div>
             <p className="text-xs text-gray-400 mt-3 text-center">
               Blue = Northbound (Aluva→Tripunithura) · Green = Southbound (Tripunithura→Aluva) ·
-              Each train strictly alternates — gap between bars = 5 min terminal turnaround
+              Red = Grounded (High priority job unresolved) · Each train strictly alternates NB↔SB
             </p>
           </div>
 

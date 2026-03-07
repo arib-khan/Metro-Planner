@@ -15,10 +15,15 @@ import { Text, HelperText } from 'react-native-paper';
 import { Formik } from 'formik';
 import * as Yup from 'yup';
 import { useAuth } from '../utils/authHelpers';
+import { Picker } from '@react-native-picker/picker';
 
 const SignupSchema = Yup.object().shape({
   name: Yup.string().required('Name is required'),
   email: Yup.string().email('Invalid email').required('Email is required'),
+  phone: Yup.string()
+    .matches(/^[0-9]{10}$/, 'Enter a valid 10-digit phone number')
+    .required('Phone number is required'),
+  department: Yup.string().required('Please select a department'),
   password: Yup.string()
     .min(6, 'Password must be at least 6 characters')
     .required('Password is required'),
@@ -84,7 +89,7 @@ export default function SignupScreen({ navigation }) {
   const handleSignup = async (values) => {
     setLoading(true);
     try {
-      await signUp(values.email, values.password, values.name);
+      await signUp(values.email, values.password, values.name, values.phone, values.department);
     } catch (error) {
       alert('Signup failed: ' + error.message);
     } finally {
@@ -113,7 +118,7 @@ export default function SignupScreen({ navigation }) {
           {/* Form Card */}
           <View style={styles.card}>
             <Formik
-              initialValues={{ name: '', email: '', password: '', confirmPassword: '' }}
+              initialValues={{ name: '', email: '', phone: '', department: '', password: '', confirmPassword: '' }}
               validationSchema={SignupSchema}
               onSubmit={handleSignup}
             >
@@ -135,6 +140,42 @@ export default function SignupScreen({ navigation }) {
                     autoCapitalize="none"
                     error={touched.email && errors.email}
                   />
+                  <StyledInput
+                    label="Phone Number"
+                    value={values.phone}
+                    onChangeText={handleChange('phone')}
+                    onBlur={handleBlur('phone')}
+                    keyboardType="phone-pad"
+                    autoCapitalize="none"
+                    error={touched.phone && errors.phone}
+                  />
+
+                  {/* Department Picker */}
+                  <View style={{ marginBottom: 14 }}>
+                    <Text style={styles.inputLabel}>Department</Text>
+                    <View style={[
+                      styles.inputContainer,
+                      { borderColor: touched.department && errors.department ? '#000000' : '#1e2d45' }
+                    ]}>
+                      <Picker
+                        selectedValue={values.department}
+                        onValueChange={handleChange('department')}
+                        style={{ color: values.department ? '#000000' : '#000000', height: 44 }}
+                        dropdownIconColor="#000000"
+                      >
+                        <Picker.Item label="Select department..." value="" color="#f0f4ff" />
+                        <Picker.Item label="Electrical" value="Electrical" color="#f0f4ff" />
+                        <Picker.Item label="Mechanical" value="Mechanical" color="#f0f4ff" />
+                        <Picker.Item label="Cleaning" value="Cleaning" color="#f0f4ff" />
+                        <Picker.Item label="Operations" value="Operations" color="#f0f4ff" />
+                        <Picker.Item label="Safety" value="Safety" color="#f0f4ff" />
+                        <Picker.Item label="IT" value="IT" color="#f0f4ff" />
+                      </Picker>
+                    </View>
+                    {touched.department && errors.department ? (
+                      <Text style={{ color: '#000000', fontSize: 11, marginTop: 4 }}>{errors.department}</Text>
+                    ) : null}
+                  </View>
                   <StyledInput
                     label="Password"
                     value={values.password}

@@ -9,7 +9,7 @@ import { db, waitForAuthReady } from '../firebase/config';
 import {
   Train, Calendar, ChevronRight, ChevronLeft, Shield, AlertTriangle,
   CheckCircle, X, TrendingUp, Zap, Droplets, MapPin, Wrench,
-  Bell, BarChart2, Eye, Filter
+  Bell, BarChart2, Eye, Filter, ShieldAlert
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
@@ -141,8 +141,27 @@ const DatePicker = ({ selectedDates, onToggle, onClear }) => {
 };
 
 // ── Train Detail Panel ────────────────────────────────────────────────────────
-const TrainDetail = ({ trainId, masterData, dailyData, selectedDates, allTrips = [], nowTime, onClose }) => {
+const TrainDetail = ({ trainId, masterData, dailyData, selectedDates, allTrips = [], nowTime, onClose, taskJobs = [] }) => {
   const [tab, setTab] = useState('overview');
+  const [allTrainTasks, setAllTrainTasks] = useState(taskJobs); // starts with passed-in blocked jobs, then loads all
+
+  // Fetch ALL tasks for this train when panel opens (not just high-priority blocked ones)
+  useEffect(() => {
+    if (!trainId || !db) return;
+    let cancelled = false;
+    getDocs(query(collection(db, 'tasks'), where('sourceTrainId', '==', trainId)))
+      .then(snap => {
+        if (cancelled) return;
+        const tasks = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        tasks.sort((a, b) => {
+          const pri = { high: 0, medium: 1, low: 2 };
+          return (pri[a.priority] ?? 1) - (pri[b.priority] ?? 1);
+        });
+        setAllTrainTasks(tasks);
+      })
+      .catch(err => console.error('[train-tasks]', err));
+    return () => { cancelled = true; };
+  }, [trainId]);
 
   const fitness = masterData?.fitness_certificates;
   const branding = masterData?.branding_priorities || [];
@@ -154,9 +173,10 @@ const TrainDetail = ({ trainId, masterData, dailyData, selectedDates, allTrips =
     .sort((a, b) => a.date.localeCompare(b.date))
     .map(d => ({ date: d.date.slice(5), km: d.mileage.current_mileage_km }));
 
-  const latestDaily = dailyData.sort((a, b) => b.date.localeCompare(a.date))[0];
+  const latestDaily = [...dailyData].sort((a, b) => b.date.localeCompare(a.date))[0];
   const latestMileage = latestDaily?.mileage?.current_mileage_km;
-  const allJobs = dailyData.flatMap(d => (d.job_card_status || []).map(j => ({ ...j, date: d.date })));
+  // Jobs from tasks collection — all priorities for this train
+  const allJobs = allTrainTasks;
   const allCleaning = dailyData.flatMap(d => (d.cleaning_slots || []).map(c => ({ ...c, date: d.date })));
   const stabling = latestDaily?.stabling_geometry;
 
@@ -264,7 +284,7 @@ const TrainDetail = ({ trainId, masterData, dailyData, selectedDates, allTrips =
                 <div className="bg-slate-50 border rounded-xl p-4">
                   <p className="text-xs text-gray-400 mb-1">Open Jobs</p>
                   <p className="text-xl font-bold text-amber-600">
-                    {allJobs.filter(j => j.status === 'Open').length}
+                    {allJobs.filter(j => j.status === 'pending' || j.status === 'in_progress').length}
                   </p>
                 </div>
                 <div className={`border rounded-xl p-4 ${activeBranding.length > 0 ? 'bg-violet-50' : 'bg-gray-50'}`}>
@@ -530,22 +550,37 @@ const TrainDetail = ({ trainId, masterData, dailyData, selectedDates, allTrips =
           {tab === 'jobs' && (
             <div className="space-y-3">
               {allJobs.length === 0 ? (
-                <div className="text-center py-10 text-gray-400 text-sm">No job cards for selected dates.</div>
-              ) : allJobs.map((j, i) => (
-                <div key={i} className="border rounded-xl p-4">
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <p className="font-semibold text-sm">{j.task}</p>
-                      <p className="text-xs text-gray-400">{j.job_id} • {j.assigned_team}</p>
-                    </div>
-                    <div className="flex gap-1.5 flex-wrap justify-end">
-                      <Badge label={j.priority} color={j.priority === 'High' ? 'red' : j.priority === 'Medium' ? 'orange' : 'gray'} />
-                      <Badge label={j.status} color={j.status === 'Completed' ? 'green' : j.status === 'Open' ? 'red' : 'orange'} />
-                    </div>
-                  </div>
-                  <p className="text-xs text-gray-400">Date: {j.date} • Due: {fmtDate(j.due_date)}</p>
+                <div className="text-center py-10 text-gray-400 text-sm">
+                  <Wrench className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                  No job cards found for {trainId}.
                 </div>
-              ))}
+              ) : allJobs.map((j, i) => {
+                const priorityColor = j.priority === 'high' ? 'red' : j.priority === 'medium' ? 'orange' : 'gray';
+                const statusColor = j.status === 'completed' ? 'green' : j.status === 'in_progress' ? 'orange' : 'red';
+                const statusLabel = j.status === 'in_progress' ? 'In Progress' : j.status === 'completed' ? 'Completed' : 'Pending';
+                const priorityLabel = j.priority ? j.priority.charAt(0).toUpperCase() + j.priority.slice(1) : '—';
+                return (
+                  <div key={j.id || i} className={`border rounded-xl p-4 ${j.priority === 'high' && j.status !== 'completed' ? 'border-red-200 bg-red-50/40' : ''}`}>
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex-1 min-w-0 pr-2">
+                        <p className="font-semibold text-sm truncate">{j.title}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">
+                          {j.sourceJobCardId && <span>{j.sourceJobCardId} · </span>}
+                          {j.department || j.assignedToName || '—'}
+                        </p>
+                      </div>
+                      <div className="flex gap-1.5 flex-wrap justify-end flex-shrink-0">
+                        <Badge label={priorityLabel} color={priorityColor} />
+                        <Badge label={statusLabel} color={statusColor} />
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-400">
+                      {j.sourceWorkOrder && <span>WO: {j.sourceWorkOrder} · </span>}
+                      {j.dueDate && <span>Due: {fmtDate(j.dueDate)}</span>}
+                    </p>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
@@ -570,6 +605,9 @@ export default function Dashboard() {
   const [loadingMaster, setLoadingMaster] = useState(true);
   const [loadingDaily, setLoadingDaily] = useState(false);
   const [nowTime, setNowTime] = useState(() => nowMin());
+  const [blockedJobs, setBlockedJobs] = useState([]);          // high-priority unresolved job card tasks
+  const [blockedTrainIds, setBlockedTrainIds] = useState(new Set()); // Set<trainId>
+  const [allOpenTasksCount, setAllOpenTasksCount] = useState(0); // all open/in-progress job card tasks
 
   const masterUnsubRef = useRef(null);
 
@@ -589,6 +627,44 @@ export default function Dashboard() {
     const id = setInterval(() => setNowTime(nowMin()), 60_000);
     return () => clearInterval(id);
   }, []);
+
+  // ── Live listener: high-priority unresolved job cards → blocks trains ─────────
+  // Any task with isJobCard=true, priority=high, status!=completed, and a
+  // sourceTrainId will ground that train — shown as blocked on cards & banner.
+  // Clears automatically when a job is marked complete in the Job Cards page.
+  useEffect(() => {
+    if (!authReady || !currentUser || !db) return;
+    const q = query(
+      collection(db, 'tasks'),
+      where('isJobCard', '==', true),
+      where('priority', '==', 'high')
+    );
+    const unsub = onSnapshot(q, snap => {
+      const jobs = [];
+      snap.forEach(d => {
+        const t = { id: d.id, ...d.data() };
+        if (t.status !== 'completed' && t.sourceTrainId) jobs.push(t);
+      });
+      setBlockedJobs(jobs);
+      setBlockedTrainIds(new Set(jobs.map(j => j.sourceTrainId)));
+    }, err => console.error('[job-block]', err));
+
+    // Separate snapshot for ALL job card tasks to count open ones (any priority)
+    const unsubAll = onSnapshot(
+      collection(db, 'tasks'),
+      snap => {
+        let count = 0;
+        snap.forEach(d => {
+          const t = d.data();
+          if (t.isJobCard && (t.status === 'pending' || t.status === 'in_progress')) count++;
+        });
+        setAllOpenTasksCount(count);
+      },
+      err => console.error('[all-tasks]', err)
+    );
+
+    return () => { unsub(); unsubAll(); };
+  }, [authReady, currentUser]);
 
   // ── Step 2: subscribe to master data — only after auth is confirmed ─────────
   useEffect(() => {
@@ -763,8 +839,9 @@ export default function Dashboard() {
     return { date: d.slice(5), avg, count: trainsWithData.length };
   }), [trainView, selectedDates]);
 
-  const fitCount = trainView.filter(t => t.isFit).length;
-  const totalOpenJobs = trainView.reduce((a, t) => a + t.openJobs, 0);
+  const fitCount = trainView.filter(t => t.isFit && !blockedTrainIds.has(t.trainId)).length;
+  const jobBlockedCount = blockedTrainIds.size;
+  const totalOpenJobs = allOpenTasksCount;
   const activeBrandingCount = trainView.filter(t => t.activeBranding.length > 0).length;
 
   const selectedTrainData = selectedTrain ? trainView.find(t => t.trainId === selectedTrain) : null;
@@ -869,17 +946,51 @@ export default function Dashboard() {
         {/* Main */}
         <div className="flex-1 overflow-y-auto p-6 space-y-4">
           {/* Alerts */}
-          <AlertBanner
+          {/* <AlertBanner
             alerts={fleetAlerts}
             onDismiss={(type) => setDismissedAlertTypes(prev => [...prev, type])}
-          />
+          /> */}
+
+          {/* Job Block Banner — only when trains are grounded */}
+          {blockedJobs.length > 0 && (
+            <div className="bg-red-600 text-white rounded-2xl shadow-lg overflow-hidden">
+              <div className="flex items-start gap-3 p-4">
+                <ShieldAlert className="h-6 w-6 flex-shrink-0 mt-0.5 animate-pulse" />
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-base">
+                    🚨 {blockedTrainIds.size} Train{blockedTrainIds.size > 1 ? 's' : ''} Grounded — High Priority Job{blockedJobs.length > 1 ? 's' : ''} Unresolved
+                  </p>
+                  <p className="text-red-100 text-sm mt-0.5 mb-3">
+                    These trains cannot operate until all High priority job cards are marked complete.
+                  </p>
+                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                    {blockedJobs.map(j => (
+                      <div key={j.id} className="bg-red-700/60 border border-red-500 rounded-xl px-3 py-2 text-xs">
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <span className="font-bold text-white">{j.sourceTrainId}</span>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${j.status === 'in_progress' ? 'bg-amber-400 text-amber-900' : 'bg-red-400 text-white'}`}>
+                            {j.status === 'in_progress' ? 'In Progress' : 'Pending'}
+                          </span>
+                        </div>
+                        <p className="text-red-100 truncate">{j.title}</p>
+                        {j.sourceJobCardId && (
+                          <p className="text-red-300 mt-0.5">{j.sourceJobCardId}{j.dueDate ? ` · Due ${j.dueDate}` : ''}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* KPIs */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
             {[
               { label: 'Total Fleet', value: 30, sub: 'KMRL-1 to KMRL-30', bg: 'bg-slate-800', icon: Train },
-              { label: 'Fit for Service', value: fitCount, sub: `${30 - fitCount} require check`, bg: 'bg-emerald-600', icon: CheckCircle },
-              { label: 'Open Job Cards', value: totalOpenJobs, sub: 'Across selected dates', bg: 'bg-amber-500', icon: AlertTriangle },
+              { label: 'Fit for Service', value: fitCount, sub: `${30 - fitCount - jobBlockedCount} cert check needed`, bg: 'bg-emerald-600', icon: CheckCircle },
+              { label: 'Job Blocked', value: jobBlockedCount, sub: jobBlockedCount > 0 ? 'High priority jobs open' : 'All clear', bg: jobBlockedCount > 0 ? 'bg-red-600' : 'bg-slate-600', icon: ShieldAlert },
+              { label: 'Open Job Cards', value: totalOpenJobs, sub: 'Pending + in progress, all priority', bg: 'bg-amber-500', icon: AlertTriangle },
               { label: 'Active Branding', value: activeBrandingCount, sub: 'Trains with campaigns', bg: 'bg-violet-600', icon: Zap },
             ].map(({ label, value, sub, bg, icon: Icon }) => (
               <div key={label} className={`${bg} text-white rounded-2xl p-5`}>
@@ -935,29 +1046,43 @@ export default function Dashboard() {
                 {filtered.map(({ trainId, fitness, isFit, activeBranding, latestMileage, depot, openJobs, master, allDaily, hasData, hasMaster }) => {
                   const certA = fitness ? checkCertAlerts(fitness, todayStr(), trainId) : [];
                   const hasAlert = certA.length > 0 || checkBrandingAlerts(master?.branding_priorities || [], todayStr(), trainId).length > 0;
+                  const isJobBlocked = blockedTrainIds.has(trainId);
+                  const blockedJob = blockedJobs.find(j => j.sourceTrainId === trainId);
 
                   return (
                     <button key={trainId} onClick={() => setSelectedTrain(trainId)}
                       className={`bg-white border rounded-2xl p-4 text-left hover:shadow-md transition-all group relative
-                        ${hasAlert ? 'border-red-200 ring-1 ring-red-100' : 'hover:border-slate-300'}
+                        ${isJobBlocked ? 'border-red-400 ring-2 ring-red-200 bg-red-50/40' : hasAlert ? 'border-red-200 ring-1 ring-red-100' : 'hover:border-slate-300'}
                         ${!hasData && !hasMaster ? 'opacity-60' : ''}`}>
 
-                      {hasAlert && (
-                        <span className="absolute top-3 right-3 w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse" />
+                      {/* Pulsing dot: red for job-blocked, orange for cert alert */}
+                      {(isJobBlocked || hasAlert) && (
+                        <span className={`absolute top-3 right-3 w-2.5 h-2.5 rounded-full animate-pulse ${isJobBlocked ? 'bg-red-600' : 'bg-red-500'}`} />
                       )}
 
                       <div className="flex items-center gap-2 mb-3">
                         <div className={`w-7 h-7 rounded-lg flex items-center justify-center
-                          ${!hasMaster ? 'bg-gray-100' : isFit ? 'bg-emerald-100' : 'bg-red-100'}`}>
-                          <Train className={`w-3.5 h-3.5
-                            ${!hasMaster ? 'text-gray-400' : isFit ? 'text-emerald-600' : 'text-red-500'}`} />
+                          ${isJobBlocked ? 'bg-red-100' : !hasMaster ? 'bg-gray-100' : isFit ? 'bg-emerald-100' : 'bg-red-100'}`}>
+                          {isJobBlocked
+                            ? <ShieldAlert className="w-3.5 h-3.5 text-red-600" />
+                            : <Train className={`w-3.5 h-3.5 ${!hasMaster ? 'text-gray-400' : isFit ? 'text-emerald-600' : 'text-red-500'}`} />
+                          }
                         </div>
                         <span className="font-bold text-sm text-slate-800">{trainId}</span>
                         <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-gray-500 transition ml-auto" />
                       </div>
 
+                      {/* Grounded warning strip */}
+                      {isJobBlocked && (
+                        <div className="mb-2 bg-red-100 border border-red-200 rounded-lg px-2.5 py-1.5 text-xs">
+                          <p className="font-bold text-red-700 flex items-center gap-1">
+                            <ShieldAlert className="w-3 h-3" /> GROUNDED
+                          </p>
+                          {blockedJob && <p className="text-red-500 truncate mt-0.5">{blockedJob.sourceJobCardId || blockedJob.title}</p>}
+                        </div>
+                      )}
+
                       {!hasData && !hasMaster ? (
-                        // No data at all for this train
                         <p className="text-xs text-gray-400 italic py-1">No data uploaded yet</p>
                       ) : (
                         <div className="space-y-1.5 text-xs text-gray-500">
@@ -984,6 +1109,7 @@ export default function Dashboard() {
                       )}
 
                       <div className="flex flex-wrap gap-1 mt-3 pt-2.5 border-t">
+                        {isJobBlocked && <Badge label="Grounded" color="red" />}
                         {activeBranding.length > 0 && <Badge label="Branding" color="purple" />}
                         {openJobs > 0 && <Badge label={`${openJobs} Job${openJobs > 1 ? 's' : ''}`} color="orange" />}
                         {!hasData && hasMaster && <Badge label="Master only" color="blue" />}
@@ -1007,6 +1133,7 @@ export default function Dashboard() {
           allTrips={allTrips}
           nowTime={nowTime}
           onClose={() => setSelectedTrain(null)}
+          taskJobs={blockedJobs.filter(j => j.sourceTrainId === selectedTrain)}
         />
       )}
     </div>

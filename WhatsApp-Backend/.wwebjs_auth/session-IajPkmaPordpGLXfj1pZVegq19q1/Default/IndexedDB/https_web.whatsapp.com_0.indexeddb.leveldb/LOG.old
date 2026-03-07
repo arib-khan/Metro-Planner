@@ -1,17 +1,73 @@
-2026/03/02-17:18:20.269 2f20 Reusing MANIFEST C:\Users\hp\Desktop\Metro-Planner\WhatsApp-Backend\.wwebjs_auth\session-IajPkmaPordpGLXfj1pZVegq19q1\Default\IndexedDB\https_web.whatsapp.com_0.indexeddb.leveldb/MANIFEST-000001
-2026/03/02-17:18:20.272 2f20 Recovering log #431
-2026/03/02-17:18:20.280 2f20 Reusing old log C:\Users\hp\Desktop\Metro-Planner\WhatsApp-Backend\.wwebjs_auth\session-IajPkmaPordpGLXfj1pZVegq19q1\Default\IndexedDB\https_web.whatsapp.com_0.indexeddb.leveldb/000431.log 
-2026/03/02-17:18:21.936 3098 Compacting 1@1 + 5@2 files
-2026/03/02-17:18:22.040 3098 Generated table #434@1: 42427 keys, 2225004 bytes
-2026/03/02-17:18:22.224 3098 Generated table #435@1: 44730 keys, 2204988 bytes
-2026/03/02-17:18:22.274 3098 Generated table #436@1: 1770 keys, 2149405 bytes
-2026/03/02-17:18:22.365 3098 Generated table #437@1: 14796 keys, 2233623 bytes
-2026/03/02-17:18:22.497 3098 Generated table #438@1: 27770 keys, 2023059 bytes
-2026/03/02-17:18:22.497 3098 Compacted 1@1 + 5@2 files => 10836079 bytes
-2026/03/02-17:18:22.503 3098 compacted to: files[ 0 0 7 0 0 0 0 ]
-2026/03/02-17:18:22.504 3098 Delete type=2 #426
-2026/03/02-17:18:22.504 3098 Delete type=2 #427
-2026/03/02-17:18:22.504 3098 Delete type=2 #428
-2026/03/02-17:18:22.505 3098 Delete type=2 #429
-2026/03/02-17:18:22.505 3098 Delete type=2 #430
-2026/03/02-17:18:22.505 3098 Delete type=2 #432
+2026/03/06-05:17:50.820 1570 Reusing MANIFEST C:\Users\hp\Desktop\Metro-Planner\WhatsApp-Backend\.wwebjs_auth\session-IajPkmaPordpGLXfj1pZVegq19q1\Default\IndexedDB\https_web.whatsapp.com_0.indexeddb.leveldb/MANIFEST-000001
+2026/03/06-05:17:50.820 1570 Recovering log #270
+2026/03/06-05:17:50.835 1570 Reusing old log C:\Users\hp\Desktop\Metro-Planner\WhatsApp-Backend\.wwebjs_auth\session-IajPkmaPordpGLXfj1pZVegq19q1\Default\IndexedDB\https_web.whatsapp.com_0.indexeddb.leveldb/000270.log 
+2026/03/06-05:18:37.468 6ce0 Level-0 table #281: started
+2026/03/06-05:18:37.598 6ce0 Level-0 table #281: 1159342 bytes OK
+2026/03/06-05:18:37.609 6ce0 Delete type=0 #270
+2026/03/06-05:18:37.721 1570 Compacting 1@1 + 8@2 files
+2026/03/06-05:18:37.924 1570 Generated table #282@1: 45319 keys, 2232960 bytes
+2026/03/06-05:18:38.157 1570 Generated table #283@1: 45069 keys, 2208102 bytes
+2026/03/06-05:18:38.237 1570 Generated table #284@1: 1720 keys, 2147256 bytes
+2026/03/06-05:18:38.435 1570 Generated table #285@1: 14109 keys, 2209440 bytes
+2026/03/06-05:18:38.812 1570 Generated table #286@1: 27581 keys, 2193306 bytes
+2026/03/06-05:18:39.197 1570 Generated table #287@1: 91586 keys, 2238638 bytes
+2026/03/06-05:18:39.475 1570 Generated table #288@1: 51073 keys, 1353925 bytes
+2026/03/06-05:18:39.475 1570 Compacted 1@1 + 8@2 files => 14583627 bytes
+2026/03/06-05:18:39.486 1570 compacted to: files[ 0 0 7 0 0 0 0 ]
+2026/03/06-05:18:39.488 1570 Delete type=2 #241
+2026/03/06-05:18:39.490 1570 Delete type=2 #272
+2026/03/06-05:18:39.491 1570 Delete type=2 #273
+2026/03/06-05:18:39.491 1570 Delete type=2 #274
+2026/03/06-05:18:39.495 1570 Delete type=2 #275
+2026/03/06-05:18:39.495 1570 Delete type=2 #276
+2026/03/06-05:18:39.496 1570 Delete type=2 #277
+2026/03/06-05:18:39.496 1570 Delete type=2 #278
+2026/03/06-05:18:39.496 1570 Delete type=2 #281
+2026/03/06-05:26:25.289 1570 Level-0 table #290: started
+2026/03/06-05:26:25.334 1570 Level-0 table #290: 1142088 bytes OK
+2026/03/06-05:26:25.336 1570 Delete type=0 #280
+2026/03/06-05:26:25.339 1570 Compacting 1@1 + 7@2 files
+2026/03/06-05:26:25.448 1570 Generated table #291@1: 46191 keys, 2235304 bytes
+2026/03/06-05:26:25.553 1570 Generated table #292@1: 47359 keys, 2208284 bytes
+2026/03/06-05:26:25.597 1570 Generated table #293@1: 1672 keys, 2144564 bytes
+2026/03/06-05:26:25.673 1570 Generated table #294@1: 14380 keys, 2233088 bytes
+2026/03/06-05:26:25.759 1570 Generated table #295@1: 27146 keys, 2193512 bytes
+2026/03/06-05:26:25.874 1570 Generated table #296@1: 81824 keys, 2226598 bytes
+2026/03/06-05:26:25.956 1570 Generated table #297@1: 62242 keys, 1600088 bytes
+2026/03/06-05:26:25.956 1570 Compacted 1@1 + 7@2 files => 14841438 bytes
+2026/03/06-05:26:25.957 1570 compacted to: files[ 0 0 7 0 0 0 0 ]
+2026/03/06-05:26:25.957 1570 Delete type=2 #282
+2026/03/06-05:26:25.957 1570 Delete type=2 #283
+2026/03/06-05:26:25.957 1570 Delete type=2 #284
+2026/03/06-05:26:25.958 1570 Delete type=2 #285
+2026/03/06-05:26:25.958 1570 Delete type=2 #286
+2026/03/06-05:26:25.958 1570 Delete type=2 #287
+2026/03/06-05:26:25.958 1570 Delete type=2 #288
+2026/03/06-05:26:25.958 1570 Delete type=2 #290
+2026/03/06-05:28:12.029 1570 Level-0 table #299: started
+2026/03/06-05:28:12.097 1570 Level-0 table #299: 972345 bytes OK
+2026/03/06-05:28:12.103 1570 Delete type=0 #289
+2026/03/06-05:31:28.268 1570 Level-0 table #301: started
+2026/03/06-05:31:28.302 1570 Level-0 table #301: 952952 bytes OK
+2026/03/06-05:31:28.305 1570 Delete type=0 #298
+2026/03/06-05:31:28.308 1570 Compacting 1@0 + 1@1 files
+2026/03/06-05:31:28.393 1570 Generated table #302@0: 26514 keys, 675880 bytes
+2026/03/06-05:31:28.393 1570 Compacted 1@0 + 1@1 files => 675880 bytes
+2026/03/06-05:31:28.400 1570 compacted to: files[ 0 1 7 0 0 0 0 ]
+2026/03/06-05:31:28.401 1570 Delete type=2 #299
+2026/03/06-05:31:28.401 1570 Delete type=2 #301
+2026/03/06-05:34:45.103 1570 Compacting 1@1 + 5@2 files
+2026/03/06-05:34:45.181 1570 Generated table #303@1: 46792 keys, 2236190 bytes
+2026/03/06-05:34:45.303 1570 Generated table #304@1: 47319 keys, 2212081 bytes
+2026/03/06-05:34:45.343 1570 Generated table #305@1: 1676 keys, 2144901 bytes
+2026/03/06-05:34:45.409 1570 Generated table #306@1: 14372 keys, 2223561 bytes
+2026/03/06-05:34:45.509 1570 Generated table #307@1: 27142 keys, 2191588 bytes
+2026/03/06-05:34:45.530 1570 Generated table #308@1: 4 keys, 3375 bytes
+2026/03/06-05:34:45.530 1570 Compacted 1@1 + 5@2 files => 11011696 bytes
+2026/03/06-05:34:45.531 1570 compacted to: files[ 0 0 8 0 0 0 0 ]
+2026/03/06-05:34:45.532 1570 Delete type=2 #291
+2026/03/06-05:34:45.532 1570 Delete type=2 #292
+2026/03/06-05:34:45.532 1570 Delete type=2 #293
+2026/03/06-05:34:45.532 1570 Delete type=2 #294
+2026/03/06-05:34:45.532 1570 Delete type=2 #295
+2026/03/06-05:34:45.532 1570 Delete type=2 #302

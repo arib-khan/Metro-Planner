@@ -8,15 +8,17 @@ import {
   onAuthStateChanged,
   reload,
 } from 'firebase/auth';
+import { auth } from '../firebaseConfig';
 import {
   doc,
   setDoc,
   getDoc,
   updateDoc,
+  getFirestore
 } from 'firebase/firestore';
-import { auth, db } from '../firebaseConfig';
 import { initNetworkListener } from './offlineSync';
 
+const db = getFirestore();
 const AuthContext = createContext();
 
 export function useAuth() {
@@ -53,30 +55,25 @@ export function AuthProvider({ children }) {
     return unsubscribe;
   }, []);
 
-  const signUp = async (email, password, name) => {
+  const signUp = async (email, password, name, phone, department) => {
     const result = await createUserWithEmailAndPassword(auth, email, password);
-
-    // Update display name on the Firebase Auth profile
     await updateProfile(result.user, { displayName: name });
-    await reload(result.user);
 
-    // Create the user document in Firestore, tagged as a mobile user
-    // so the web dashboard can filter and show ONLY mobile users
     await setDoc(doc(db, 'users', result.user.uid), {
       uid: result.user.uid,
       email: email,
       displayName: name,
+      phone: phone || null,
+      department: department || null,   // ← saved here
+      appType: 'mobile',
       role: 'user',
-      appType: 'mobile',      // ← KEY FLAG: identifies this as a mobile app user
       isBlocked: false,
-      emailVerified: false,
       createdAt: new Date(),
       lastLoginAt: new Date(),
     });
 
-    // Reflect the updated displayName immediately in local state
+    await reload(result.user);
     setUser({ ...result.user, displayName: name });
-
     return result;
   };
 

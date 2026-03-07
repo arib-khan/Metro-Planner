@@ -13,7 +13,7 @@ import {
     Users, Shield, ShieldOff, Search, ChevronDown, ChevronUp,
     Clock, Mail, Calendar, Hash, AlertTriangle, CheckCircle2,
     Plus, X, Loader2, RefreshCw, UserCheck, UserX,
-    ClipboardList, Inbox
+    ClipboardList, Inbox, Phone, Building2
 } from 'lucide-react';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -336,6 +336,18 @@ function UserRow({ user, onBlock, onAssign, onViewTasks, taskCounts }) {
                         )}
                     </div>
                     <p className="text-xs text-gray-500 truncate mt-0.5">{user.email}</p>
+                    {user.phone && (
+                        <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
+                            <Phone className="h-3 w-3" />
+                            {user.phone}
+                        </p>
+                    )}
+                    {user.department && (
+                        <span className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
+                            <Building2 className="h-3 w-3" />
+                            {user.department}
+                        </span>
+                    )}
                 </div>
 
                 {/* Meta */}
@@ -411,6 +423,8 @@ function UserRow({ user, onBlock, onAssign, onViewTasks, taskCounts }) {
                         { label: 'App Type', value: user.appType || 'unknown', icon: UserCheck },
                         { label: 'Status', value: isBlocked ? 'Blocked' : 'Active', icon: isBlocked ? UserX : UserCheck },
                         { label: 'Tasks Assigned', value: String(taskCount), icon: ClipboardList },
+                        { label: 'Phone', value: user.phone || '—', icon: Phone },
+                        { label: 'Department', value: user.department || '—', icon: Building2 },
                     ].map(({ label, value, icon: Icon }) => (
                         <div key={label} className="space-y-1">
                             <p className="text-gray-400 uppercase tracking-wider font-medium flex items-center gap-1">

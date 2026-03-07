@@ -10,7 +10,6 @@ export default function DashboardLayout({ children }) {
     <ProtectedRoute>
       <Navbar />
       {children}
-      <TrainAnimation />S
     </ProtectedRoute>
   );
 }
