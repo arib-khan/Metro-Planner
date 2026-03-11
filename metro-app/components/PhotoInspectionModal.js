@@ -1,11 +1,27 @@
 // components/PhotoInspectionModal.js
 import React, { useState } from 'react';
-import { View, Alert, Image, Platform } from 'react-native';
-import { Modal, Button, Text, Portal, ActivityIndicator, TextInput } from 'react-native-paper';
+import { View, Alert, Image, Platform, StyleSheet } from 'react-native';
+import { Modal, Button, Text, Portal, ActivityIndicator, TextInput, IconButton } from 'react-native-paper';
 import * as DocumentPicker from 'expo-document-picker';
 import { useAuth } from '../utils/authHelpers';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
+
+// Color palette matching HomeScreen
+const C = {
+  bg: '#0a0f1e',
+  surface: '#111827',
+  surface2: '#1a2235',
+  border: '#1e2d45',
+  accent: '#3b82f6',
+  accentGlow: '#3b82f622',
+  text: '#f0f4ff',
+  textMuted: '#6b7fa3',
+  textDim: '#3d506b',
+  success: '#00e876',
+  warning: '#f59e0b',
+  error: '#ef4444',
+};
 
 const PhotoInspectionModal = ({ visible, onDismiss, onSuccess }) => {
   const { user } = useAuth();
@@ -47,7 +63,7 @@ const PhotoInspectionModal = ({ visible, onDismiss, onSuccess }) => {
   const pickImage = async () => {
     try {
       console.log('Starting image picker...');
-      
+
       const result = await DocumentPicker.getDocumentAsync({
         type: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'],
         copyToCacheDirectory: true,
@@ -64,7 +80,7 @@ const PhotoInspectionModal = ({ visible, onDismiss, onSuccess }) => {
       if (result.assets && result.assets.length > 0) {
         const image = result.assets[0];
         console.log('Selected image:', image);
-        
+
         // Validate file size (max 10MB)
         if (image.size > 10 * 1024 * 1024) {
           Alert.alert('Error', 'Image size should not exceed 10MB');
@@ -73,7 +89,7 @@ const PhotoInspectionModal = ({ visible, onDismiss, onSuccess }) => {
 
         setSelectedImage(image);
         setImagePreview(image.uri);
-        
+
         Alert.alert(
           'Image Selected',
           `"${image.name}" is ready to inspect. Please enter the train ID.`,
@@ -85,7 +101,7 @@ const PhotoInspectionModal = ({ visible, onDismiss, onSuccess }) => {
     } catch (error) {
       console.error('Image picker error:', error);
       Alert.alert(
-        'Image Selection Error', 
+        'Image Selection Error',
         'Please make sure you have permission to access photos and try again.'
       );
     }
@@ -105,10 +121,10 @@ const PhotoInspectionModal = ({ visible, onDismiss, onSuccess }) => {
     setUploading(true);
     try {
       console.log('Starting upload to API...');
-      
+
       // Create FormData
       const formData = new FormData();
-      
+
       // Determine the correct MIME type
       let mimeType = 'image/jpeg';
       if (selectedImage.name) {
@@ -150,7 +166,7 @@ const PhotoInspectionModal = ({ visible, onDismiss, onSuccess }) => {
       // Extract the JSON string from the result field
       const resultString = apiResponse.result || '';
       console.log('Result String:', resultString);
-      
+
       // Parse the JSON from the markdown code block
       let parsedResult = {};
       try {
@@ -244,7 +260,7 @@ AI-Powered Defect Detection System
 
       // Check if no machine parts were detected
       const noPartsDetected = part_name.includes('No identifiable machine parts');
-      
+
       // Show appropriate success message
       if (noPartsDetected) {
         Alert.alert(
@@ -316,14 +332,14 @@ AI-Powered Defect Detection System
     } catch (error) {
       console.error('Upload error:', error);
       let errorMessage = error.message || 'Failed to process the image. Please check your connection and try again.';
-      
+
       // Handle specific error cases
       if (errorMessage.includes('Network request failed')) {
         errorMessage = 'Network error. Please check your internet connection and try again.';
       } else if (errorMessage.includes('timeout')) {
         errorMessage = 'Request timed out. The server might be busy. Please try again.';
       }
-      
+
       Alert.alert(
         'Upload Failed',
         errorMessage,
@@ -355,95 +371,81 @@ AI-Powered Defect Detection System
       <Modal
         visible={visible}
         onDismiss={handleCancel}
-        contentContainerStyle={{
-          backgroundColor: 'white',
-          padding: 20,
-          margin: 20,
-          borderRadius: 12,
-          maxHeight: '90%',
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.25,
-          shadowRadius: 3.84,
-          elevation: 5,
-        }}
+        contentContainerStyle={styles.modalContainer}
       >
-        <View style={{ marginBottom: 16 }}>
-          <Text variant="titleLarge" style={{ marginBottom: 8, textAlign: 'center', fontWeight: 'bold', color: '#1f2937' }}>
-            📸 Photo Inspection
-          </Text>
-          <Text variant="bodyMedium" style={{ marginBottom: 8, textAlign: 'center', color: '#6b7280' }}>
-            Upload a photo of train parts for AI inspection
-          </Text>
-          
-          {/* Train ID Input */}
-          <TextInput
-            label="Train ID *"
-            mode="outlined"
-            value={trainId}
-            onChangeText={setTrainId}
-            placeholder="e.g., KMRC-001, MRT-202, EMU-001"
-            style={{ marginBottom: 16 }}
-            disabled={uploading}
-            outlineColor="#d1d5db"
-            activeOutlineColor="#ef4444"
-            left={<TextInput.Icon icon="train" size={20} color="#6b7280" />}
+        <View style={styles.modalHeader}>
+          <View style={styles.headerLeft}>
+            <IconButton icon="camera" size={28} iconColor={C.accent} />
+            <Text variant="titleLarge" style={styles.modalTitle}>
+              Photo Inspection
+            </Text>
+          </View>
+          <IconButton
+            icon="close"
+            size={20}
+            iconColor={C.textMuted}
+            onPress={handleCancel}
           />
         </View>
 
+        <Text variant="bodyMedium" style={styles.modalSubtitle}>
+          Upload a photo of train parts for AI inspection
+        </Text>
+
+        {/* Train ID Input */}
+        <TextInput
+          label="Train ID *"
+          mode="outlined"
+          value={trainId}
+          onChangeText={setTrainId}
+          placeholder="e.g., KMRC-001, MRT-202, EMU-001"
+          style={styles.trainIdInput}
+          disabled={uploading}
+          outlineColor={C.border}
+          activeOutlineColor={C.accent}
+          textColor={C.text}
+          theme={{
+            colors: {
+              background: C.surface2,
+              onSurfaceVariant: C.textMuted,
+            }
+          }}
+          left={<TextInput.Icon icon="train" size={20} color={C.textMuted} />}
+        />
+
         {/* Image Preview */}
         {imagePreview && (
-          <View style={{ marginBottom: 20, alignItems: 'center' }}>
-            <View style={{ position: 'relative', width: '100%' }}>
+          <View style={styles.previewContainer}>
+            <View style={styles.imageWrapper}>
               <Image
                 source={{ uri: imagePreview }}
-                style={{
-                  width: '100%',
-                  height: 200,
-                  borderRadius: 8,
-                  borderWidth: 2,
-                  borderColor: '#10b981',
-                }}
+                style={styles.imagePreview}
                 resizeMode="contain"
               />
-              <View style={{
-                position: 'absolute',
-                top: 8,
-                right: 8,
-                backgroundColor: 'rgba(16, 185, 129, 0.9)',
-                paddingHorizontal: 8,
-                paddingVertical: 4,
-                borderRadius: 12,
-                flexDirection: 'row',
-                alignItems: 'center',
-              }}>
-                <Text style={{ color: 'white', fontSize: 12, fontWeight: '600', marginRight: 4 }}>
-                  ✓
-                </Text>
-                <Text style={{ color: 'white', fontSize: 12, fontWeight: '600' }}>
-                  Selected
-                </Text>
+              <View style={styles.selectedBadge}>
+                <IconButton icon="check-circle" size={16} iconColor={C.success} />
+                <Text style={styles.selectedText}>Selected</Text>
               </View>
             </View>
-            <Text variant="bodySmall" style={{ marginTop: 8, color: '#10b981', fontWeight: '500' }}>
+            <Text variant="bodySmall" style={styles.imageName}>
               {selectedImage?.name}
             </Text>
-            <Text variant="bodySmall" style={{ marginTop: 2, color: '#6b7280' }}>
+            <Text variant="bodySmall" style={styles.imageSize}>
               Size: {(selectedImage?.size / (1024 * 1024)).toFixed(2)} MB
             </Text>
           </View>
         )}
 
         {uploading ? (
-          <View style={{ alignItems: 'center', marginVertical: 24 }}>
-            <ActivityIndicator size="large" color="#ef4444" />
-            <Text style={{ marginTop: 12, fontSize: 16, fontWeight: '600', color: '#1f2937' }}>
+          <View style={styles.uploadingContainer}>
+            <ActivityIndicator size="large" color={C.accent} />
+            <Text style={styles.uploadingTitle}>
               Processing image with AI...
             </Text>
-            <Text style={{ marginTop: 8, fontSize: 14, color: '#6b7280', textAlign: 'center' }}>
+            <Text style={styles.uploadingSubtitle}>
               Analyzing defects and identifying parts
             </Text>
-            <Text style={{ marginTop: 4, fontSize: 12, color: '#9ca3af', fontStyle: 'italic' }}>
+            <Text style={styles.uploadingHint}>
               This may take a few seconds
             </Text>
           </View>
@@ -453,14 +455,10 @@ AI-Powered Defect Detection System
               <Button
                 mode="contained"
                 onPress={pickImage}
-                style={{ 
-                  marginBottom: 12,
-                  borderRadius: 8,
-                  backgroundColor: '#ef4444'
-                }}
+                style={styles.selectButton}
+                contentStyle={styles.buttonContent}
+                labelStyle={styles.buttonLabel}
                 icon="camera"
-                contentStyle={{ paddingVertical: 8 }}
-                labelStyle={{ fontSize: 16, fontWeight: '600' }}
               >
                 Select Photo
               </Button>
@@ -469,15 +467,14 @@ AI-Powered Defect Detection System
                 <Button
                   mode="contained"
                   onPress={uploadAndInspect}
-                  style={{ 
-                    marginBottom: 12,
-                    borderRadius: 8,
-                    backgroundColor: trainId.trim() ? '#10b981' : '#9ca3af'
-                  }}
+                  style={[
+                    styles.inspectButton,
+                    !trainId.trim() && styles.inspectButtonDisabled
+                  ]}
+                  contentStyle={styles.buttonContent}
+                  labelStyle={styles.buttonLabel}
                   icon="upload"
                   disabled={!trainId.trim()}
-                  contentStyle={{ paddingVertical: 8 }}
-                  labelStyle={{ fontSize: 16, fontWeight: '600' }}
                 >
                   Upload & Inspect
                 </Button>
@@ -487,15 +484,9 @@ AI-Powered Defect Detection System
                     setSelectedImage(null);
                     setImagePreview(null);
                   }}
-                  style={{ 
-                    marginBottom: 12,
-                    borderRadius: 8,
-                    borderColor: '#ef4444'
-                  }}
+                  style={styles.changeButton}
+                  labelStyle={styles.changeButtonLabel}
                   icon="image-edit"
-                  textColor="#ef4444"
-                  contentStyle={{ paddingVertical: 8 }}
-                  labelStyle={{ fontSize: 16, fontWeight: '600' }}
                 >
                   Choose Different Photo
                 </Button>
@@ -503,48 +494,33 @@ AI-Powered Defect Detection System
             )}
 
             {/* Instructions */}
-            <View style={{ 
-              backgroundColor: '#f9fafb', 
-              padding: 12, 
-              borderRadius: 8, 
-              borderWidth: 1, 
-              borderColor: '#e5e7eb',
-              marginTop: 16 
-            }}>
-              <Text style={{ fontSize: 12, color: '#6b7280', textAlign: 'center' }}>
-                📋 For best results:
-              </Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
-                <Text style={{ fontSize: 12, color: '#22c55e', marginRight: 4 }}>✓</Text>
-                <Text style={{ fontSize: 12, color: '#6b7280' }}>
-                  Focus on specific train parts
-                </Text>
+            <View style={styles.instructionsContainer}>
+              <Text style={styles.instructionsTitle}>📋 For best results:</Text>
+              <View style={styles.instructionItem}>
+                <IconButton icon="check-circle" size={14} iconColor={C.success} style={styles.instructionIcon} />
+                <Text style={styles.instructionText}>Focus on specific train parts</Text>
               </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
-                <Text style={{ fontSize: 12, color: '#22c55e', marginRight: 4 }}>✓</Text>
-                <Text style={{ fontSize: 12, color: '#6b7280' }}>
-                  Ensure good lighting
-                </Text>
+              <View style={styles.instructionItem}>
+                <IconButton icon="check-circle" size={14} iconColor={C.success} style={styles.instructionIcon} />
+                <Text style={styles.instructionText}>Ensure good lighting</Text>
               </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
-                <Text style={{ fontSize: 12, color: '#22c55e', marginRight: 4 }}>✓</Text>
-                <Text style={{ fontSize: 12, color: '#6b7280' }}>
-                  Avoid blurry images
-                </Text>
+              <View style={styles.instructionItem}>
+                <IconButton icon="check-circle" size={14} iconColor={C.success} style={styles.instructionIcon} />
+                <Text style={styles.instructionText}>Avoid blurry images</Text>
               </View>
-              <Text style={{ fontSize: 11, color: '#9ca3af', marginTop: 8, textAlign: 'center', fontStyle: 'italic' }}>
+              <Text style={styles.supportedFormats}>
                 Supported: JPG, PNG, WEBP • Max 10MB
               </Text>
             </View>
           </View>
         )}
 
-        <Button 
-          mode="text" 
+        <Button
+          mode="text"
           onPress={handleCancel}
           disabled={uploading}
-          textColor="#6b7280"
-          style={{ marginTop: 16 }}
+          style={styles.cancelButton}
+          labelStyle={styles.cancelButtonLabel}
         >
           {uploading ? 'Cancel (Upload in Progress)' : 'Cancel'}
         </Button>
@@ -552,5 +528,183 @@ AI-Powered Defect Detection System
     </Portal>
   );
 };
+
+const styles = StyleSheet.create({
+  modalContainer: {
+    backgroundColor: C.surface,
+    padding: 20,
+    margin: 20,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: C.border,
+    maxHeight: '90%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  modalTitle: {
+    color: C.text,
+    fontSize: 20,
+    fontWeight: '700',
+    marginLeft: 8,
+  },
+  modalSubtitle: {
+    color: C.textMuted,
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  trainIdInput: {
+    marginBottom: 16,
+    backgroundColor: C.surface2,
+  },
+  previewContainer: {
+    marginBottom: 20,
+    alignItems: 'center',
+  },
+  imageWrapper: {
+    position: 'relative',
+    width: '100%',
+  },
+  imagePreview: {
+    width: '100%',
+    height: 200,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: C.success,
+    backgroundColor: C.surface2,
+  },
+  selectedBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: C.success + '20',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: C.success,
+  },
+  selectedText: {
+    color: C.success,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  imageName: {
+    marginTop: 8,
+    color: C.success,
+    fontWeight: '500',
+  },
+  imageSize: {
+    marginTop: 2,
+    color: C.textMuted,
+  },
+  uploadingContainer: {
+    alignItems: 'center',
+    marginVertical: 24,
+    backgroundColor: C.surface2,
+    padding: 20,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: C.border,
+  },
+  uploadingTitle: {
+    marginTop: 12,
+    fontSize: 16,
+    fontWeight: '600',
+    color: C.text,
+  },
+  uploadingSubtitle: {
+    marginTop: 8,
+    fontSize: 14,
+    color: C.textMuted,
+    textAlign: 'center',
+  },
+  uploadingHint: {
+    marginTop: 4,
+    fontSize: 12,
+    color: C.textDim,
+    fontStyle: 'italic',
+  },
+  selectButton: {
+    marginBottom: 12,
+    borderRadius: 12,
+    backgroundColor: C.accent,
+  },
+  inspectButton: {
+    marginBottom: 12,
+    borderRadius: 12,
+    backgroundColor: C.success,
+  },
+  inspectButtonDisabled: {
+    backgroundColor: C.textDim,
+  },
+  changeButton: {
+    marginBottom: 12,
+    borderRadius: 12,
+    borderColor: C.accent,
+  },
+  changeButtonLabel: {
+    color: C.accent,
+  },
+  buttonContent: {
+    paddingVertical: 8,
+  },
+  buttonLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#ffffff',
+  },
+  instructionsContainer: {
+    backgroundColor: C.surface2,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: C.border,
+    marginTop: 16,
+  },
+  instructionsTitle: {
+    fontSize: 12,
+    color: C.textMuted,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  instructionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 2,
+  },
+  instructionIcon: {
+    margin: 0,
+    marginRight: 4,
+  },
+  instructionText: {
+    fontSize: 12,
+    color: C.textMuted,
+    flex: 1,
+  },
+  supportedFormats: {
+    fontSize: 11,
+    color: C.textDim,
+    marginTop: 8,
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
+  cancelButton: {
+    marginTop: 16,
+  },
+  cancelButtonLabel: {
+    color: C.textMuted,
+  },
+});
 
 export default PhotoInspectionModal;

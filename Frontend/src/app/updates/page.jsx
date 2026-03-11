@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { collection, query, where, onSnapshot, doc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, updateDoc, deleteDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { Train, CheckCircle, XCircle, Clock, User, Calendar, AlertCircle, MessageSquare } from 'lucide-react';
 import WhatsAppIntegration from '../components/WhatsAppIntegration';
@@ -41,14 +41,36 @@ const UpdatesPage = () => {
   const handleApprove = async (updateId) => {
     setProcessingId(updateId);
     try {
-      const updateRef = doc(db, 'trainInduction', updateId);
-      await updateDoc(updateRef, {
+      const update = pendingUpdates.find(u => u.id === updateId);
+      if (!update) throw new Error('Update not found');
+
+      const batch = writeBatch(db);
+
+      // Mark induction as approved
+      batch.update(doc(db, 'trainInduction', updateId), {
         status: 'approved',
         approvedAt: serverTimestamp(),
         syncStatus: 'approved'
       });
-      
-      alert('Update approved successfully!');
+
+      // Write everything as one doc into trainDailyData (already in your rules)
+      const dailyRef = doc(collection(db, 'trainDailyData'));
+      batch.set(dailyRef, {
+        date: update.date || new Date().toISOString().split('T')[0],
+        branding_priorities: update.branding_priorities || [],
+        cleaning_slots: update.cleaning_slots || [],
+        stabling_geometry: update.stabling_geometry || [],
+        fitness_certificates: update.fitness_certificates || [],
+        job_card_status: update.job_card_status || [],
+        mileage: update.mileage || [],
+        source: 'whatsapp',
+        approvedAt: serverTimestamp(),
+        submittedBy: update.whatsappInfo?.name || update.userName,
+        sourceId: updateId,
+      });
+
+      await batch.commit();
+      alert('Update approved and dashboard updated!');
       setSelectedUpdate(null);
     } catch (error) {
       console.error('Error approving update:', error);
@@ -63,7 +85,7 @@ const UpdatesPage = () => {
     try {
       const updateRef = doc(db, 'trainInduction', updateId);
       await deleteDoc(updateRef);
-      
+
       alert('Update rejected and deleted successfully!');
       setSelectedUpdate(null);
     } catch (error) {
@@ -82,7 +104,7 @@ const UpdatesPage = () => {
 
   const getTrainIds = (update) => {
     const ids = new Set();
-    
+
     if (update.branding_priorities) {
       update.branding_priorities.forEach(item => ids.add(item.train_id));
     }
@@ -92,7 +114,7 @@ const UpdatesPage = () => {
     if (update.stabling_geometry) {
       update.stabling_geometry.forEach(item => ids.add(item.train_id));
     }
-    
+
     return Array.from(ids);
   };
 
@@ -115,7 +137,7 @@ const UpdatesPage = () => {
           <h2 className="text-3xl font-bold text-gray-900">Pending Updates</h2>
           <p className="text-sm text-gray-500">Review and approve train induction submissions</p>
         </div>
-<WhatsAppIntegration/>
+        <WhatsAppIntegration />
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
@@ -173,11 +195,10 @@ const UpdatesPage = () => {
                       {formatDate(update.timestamp)}
                     </div>
                   </div>
-                  <span className={`px-3 py-1 text-xs font-medium rounded-full ${
-                    update.source === 'manual_entry' 
-                      ? 'bg-blue-100 text-blue-800' 
+                  <span className={`px-3 py-1 text-xs font-medium rounded-full ${update.source === 'manual_entry'
+                      ? 'bg-blue-100 text-blue-800'
                       : 'bg-purple-100 text-purple-800'
-                  }`}>
+                    }`}>
                     {update.source === 'manual_entry' ? 'Manual Entry' : 'Bulk Upload'}
                   </span>
                 </div>

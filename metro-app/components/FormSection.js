@@ -1,6 +1,6 @@
-//components\FormSection.js
+// components/FormSection.js
 import React, { useState } from 'react';
-import { View, Platform } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import {
   Card,
   Text,
@@ -11,19 +11,32 @@ import {
   Button,
   Portal,
   Modal,
-  RadioButton,
+  IconButton,
 } from 'react-native-paper';
+
+// Color palette matching HomeScreen
+const C = {
+  bg: '#0a0f1e',
+  surface: '#111827',
+  surface2: '#1a2235',
+  border: '#1e2d45',
+  accent: '#3b82f6',
+  accentGlow: '#3b82f622',
+  text: '#f0f4ff',
+  textMuted: '#6b7fa3',
+  textDim: '#3d506b',
+  success: '#00e876',
+  warning: '#f59e0b',
+  error: '#ef4444',
+};
 
 const FormSection = ({ title, fields, values, setFieldValue, errors, touched }) => {
   const [expanded, setExpanded] = useState(true);
   const [menuVisible, setMenuVisible] = useState({});
   const [dateModalVisible, setDateModalVisible] = useState({});
   const [timeModalVisible, setTimeModalVisible] = useState({});
-  const [tempDate, setTempDate] = useState(new Date());
-  const [tempTime, setTempTime] = useState(new Date());
 
   const showDatePicker = (fieldName) => {
-    setTempDate(new Date());
     setDateModalVisible({ ...dateModalVisible, [fieldName]: true });
   };
 
@@ -31,28 +44,12 @@ const FormSection = ({ title, fields, values, setFieldValue, errors, touched }) 
     setDateModalVisible({ ...dateModalVisible, [fieldName]: false });
   };
 
-  const handleDateConfirm = (fieldName) => {
-    setFieldValue(fieldName, tempDate.toISOString());
-    hideDatePicker(fieldName);
-  };
-
   const showTimePicker = (fieldName) => {
-    setTempTime(new Date());
     setTimeModalVisible({ ...timeModalVisible, [fieldName]: true });
   };
 
   const hideTimePicker = (fieldName) => {
     setTimeModalVisible({ ...timeModalVisible, [fieldName]: false });
-  };
-
-  const handleTimeConfirm = (fieldName) => {
-    const timeString = tempTime.toLocaleTimeString([], { 
-      hour: '2-digit', 
-      minute: '2-digit',
-      hour12: false 
-    });
-    setFieldValue(fieldName, timeString);
-    hideTimePicker(fieldName);
   };
 
   const formatDate = (dateString) => {
@@ -62,51 +59,47 @@ const FormSection = ({ title, fields, values, setFieldValue, errors, touched }) 
   };
 
   const renderField = (field) => {
-    const { name, label, type, options, multiline, editable = true } = field;
+    const { name, label, type, options, multiline, editable = true, placeholder } = field;
     const value = values[name];
     const error = touched[name] && errors[name];
 
     switch (type) {
       case 'text':
       case 'number':
+      case 'textarea':
         return (
-          <View key={name}>
+          <View key={name} style={styles.fieldContainer}>
+            <Text style={styles.fieldLabel}>{label}</Text>
             <TextInput
-              label={label}
               mode="outlined"
               value={value}
               onChangeText={(text) => setFieldValue(name, text)}
               keyboardType={type === 'number' ? 'numeric' : 'default'}
-              multiline={multiline}
-              numberOfLines={multiline ? 3 : 1}
+              multiline={type === 'textarea'}
+              numberOfLines={type === 'textarea' ? 3 : 1}
               error={error}
               editable={editable}
-              style={{ marginBottom: 8 }}
+              placeholder={placeholder}
+              placeholderTextColor={C.textDim}
+              style={styles.textInput}
+              outlineColor={C.border}
+              activeOutlineColor={C.accent}
+              textColor={C.text}
+              theme={{
+                colors: {
+                  background: C.surface2,
+                  onSurfaceVariant: C.textMuted,
+                }
+              }}
             />
-            {error && <HelperText type="error">{error}</HelperText>}
-          </View>
-        );
-
-      case 'textarea':
-        return (
-          <View key={name}>
-            <TextInput
-              label={label}
-              mode="outlined"
-              value={value}
-              onChangeText={(text) => setFieldValue(name, text)}
-              multiline={true}
-              numberOfLines={3}
-              error={error}
-              style={{ marginBottom: 8 }}
-            />
-            {error && <HelperText type="error">{error}</HelperText>}
+            {error && <HelperText type="error" style={styles.errorText}>{error}</HelperText>}
           </View>
         );
 
       case 'select':
         return (
-          <View key={name}>
+          <View key={name} style={styles.fieldContainer}>
+            <Text style={styles.fieldLabel}>{label}</Text>
             <Menu
               visible={menuVisible[name] || false}
               onDismiss={() => setMenuVisible({ ...menuVisible, [name]: false })}
@@ -114,61 +107,81 @@ const FormSection = ({ title, fields, values, setFieldValue, errors, touched }) 
                 <Button
                   mode="outlined"
                   onPress={() => setMenuVisible({ ...menuVisible, [name]: true })}
-                  style={{ marginBottom: 8 }}
+                  style={styles.selectButton}
+                  contentStyle={styles.selectButtonContent}
+                  textColor={value ? C.text : C.textMuted}
+                  icon="chevron-down"
                 >
                   {value || `Select ${label}`}
                 </Button>
               }
+              style={styles.menu}
             >
-              {options.map((option) => (
-                <Menu.Item
-                  key={option}
-                  onPress={() => {
-                    setFieldValue(name, option);
-                    setMenuVisible({ ...menuVisible, [name]: false });
-                  }}
-                  title={option}
-                />
-              ))}
+              <View style={styles.menuContent}>
+                {options.map((option) => (
+                  <Menu.Item
+                    key={option}
+                    onPress={() => {
+                      setFieldValue(name, option);
+                      setMenuVisible({ ...menuVisible, [name]: false });
+                    }}
+                    title={option}
+                    titleStyle={styles.menuItemTitle}
+                    style={value === option ? styles.menuItemSelected : null}
+                  />
+                ))}
+              </View>
             </Menu>
-            {error && <HelperText type="error">{error}</HelperText>}
+            {error && <HelperText type="error" style={styles.errorText}>{error}</HelperText>}
           </View>
         );
 
       case 'toggle':
         return (
-          <View key={name} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <Text variant="bodyMedium">{label}</Text>
+          <View key={name} style={styles.toggleContainer}>
+            <Text style={styles.toggleLabel}>{label}</Text>
             <Switch
               value={value}
               onValueChange={(newValue) => setFieldValue(name, newValue)}
+              color={C.accent}
             />
           </View>
         );
 
       case 'date':
         return (
-          <View key={name}>
+          <View key={name} style={styles.fieldContainer}>
+            <Text style={styles.fieldLabel}>{label}</Text>
             <Button
               mode="outlined"
               onPress={() => showDatePicker(name)}
-              style={{ marginBottom: 8 }}
+              style={styles.dateButton}
+              contentStyle={styles.dateButtonContent}
+              textColor={value ? C.text : C.textMuted}
+              icon="calendar"
             >
               {value ? formatDate(value) : `Select ${label}`}
             </Button>
-            
+
             <Portal>
               <Modal
                 visible={dateModalVisible[name] || false}
                 onDismiss={() => hideDatePicker(name)}
-                contentContainerStyle={{ backgroundColor: 'white', padding: 20, margin: 20, borderRadius: 8 }}
+                contentContainerStyle={styles.modalContent}
               >
-                <Text variant="titleMedium" style={{ marginBottom: 16 }}>Select {label}</Text>
-                
-                {/* Simple date selection - you can enhance this with a proper date picker later */}
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>Select {label}</Text>
+                  <IconButton
+                    icon="close"
+                    size={20}
+                    iconColor={C.textMuted}
+                    onPress={() => hideDatePicker(name)}
+                  />
+                </View>
+
                 <TextInput
-                  label="Date (YYYY-MM-DD)"
                   mode="outlined"
+                  label="Date (YYYY-MM-DD)"
                   value={value ? new Date(value).toISOString().split('T')[0] : ''}
                   onChangeText={(text) => {
                     if (text.match(/^\d{4}-\d{2}-\d{2}$/)) {
@@ -176,82 +189,122 @@ const FormSection = ({ title, fields, values, setFieldValue, errors, touched }) 
                     }
                   }}
                   placeholder="2024-01-20"
-                  style={{ marginBottom: 16 }}
+                  style={styles.modalInput}
+                  outlineColor={C.border}
+                  activeOutlineColor={C.accent}
+                  textColor={C.text}
+                  theme={{
+                    colors: {
+                      background: C.surface2,
+                      onSurfaceVariant: C.textMuted,
+                    }
+                  }}
                 />
-                
-                <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
-                  <Button onPress={() => hideDatePicker(name)} style={{ marginRight: 8 }}>
+
+                <View style={styles.modalActions}>
+                  <Button
+                    onPress={() => hideDatePicker(name)}
+                    textColor={C.textMuted}
+                  >
                     Cancel
                   </Button>
-                  <Button 
-                    mode="contained" 
+                  <Button
+                    mode="contained"
                     onPress={() => {
                       setFieldValue(name, new Date().toISOString());
                       hideDatePicker(name);
                     }}
+                    buttonColor={C.accent}
+                    textColor="#ffffff"
                   >
                     Use Today
                   </Button>
                 </View>
               </Modal>
             </Portal>
-            
-            {error && <HelperText type="error">{error}</HelperText>}
+
+            {error && <HelperText type="error" style={styles.errorText}>{error}</HelperText>}
           </View>
         );
 
       case 'time':
         return (
-          <View key={name}>
+          <View key={name} style={styles.fieldContainer}>
+            <Text style={styles.fieldLabel}>{label}</Text>
             <Button
               mode="outlined"
               onPress={() => showTimePicker(name)}
-              style={{ marginBottom: 8 }}
+              style={styles.dateButton}
+              contentStyle={styles.dateButtonContent}
+              textColor={value ? C.text : C.textMuted}
+              icon="clock-outline"
             >
               {value || `Select ${label}`}
             </Button>
-            
+
             <Portal>
               <Modal
                 visible={timeModalVisible[name] || false}
                 onDismiss={() => hideTimePicker(name)}
-                contentContainerStyle={{ backgroundColor: 'white', padding: 20, margin: 20, borderRadius: 8 }}
+                contentContainerStyle={styles.modalContent}
               >
-                <Text variant="titleMedium" style={{ marginBottom: 16 }}>Select {label}</Text>
-                
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>Select {label}</Text>
+                  <IconButton
+                    icon="close"
+                    size={20}
+                    iconColor={C.textMuted}
+                    onPress={() => hideTimePicker(name)}
+                  />
+                </View>
+
                 <TextInput
-                  label="Time (HH:MM)"
                   mode="outlined"
+                  label="Time (HH:MM)"
                   value={value}
                   onChangeText={(text) => setFieldValue(name, text)}
                   placeholder="14:30"
-                  style={{ marginBottom: 16 }}
+                  style={styles.modalInput}
+                  outlineColor={C.border}
+                  activeOutlineColor={C.accent}
+                  textColor={C.text}
+                  theme={{
+                    colors: {
+                      background: C.surface2,
+                      onSurfaceVariant: C.textMuted,
+                    }
+                  }}
                 />
-                
-                <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
-                  <Button onPress={() => hideTimePicker(name)} style={{ marginRight: 8 }}>
+
+                <View style={styles.modalActions}>
+                  <Button
+                    onPress={() => hideTimePicker(name)}
+                    textColor={C.textMuted}
+                  >
                     Cancel
                   </Button>
-                  <Button 
-                    mode="contained" 
+                  <Button
+                    mode="contained"
                     onPress={() => {
                       const now = new Date();
-                      const timeString = now.toLocaleTimeString([], { 
-                        hour: '2-digit', 
+                      const timeString = now.toLocaleTimeString([], {
+                        hour: '2-digit',
                         minute: '2-digit',
-                        hour12: false 
+                        hour12: false
                       });
                       setFieldValue(name, timeString);
                       hideTimePicker(name);
                     }}
+                    buttonColor={C.accent}
+                    textColor="#ffffff"
                   >
                     Use Now
                   </Button>
                 </View>
               </Modal>
             </Portal>
-            
-            {error && <HelperText type="error">{error}</HelperText>}
+
+            {error && <HelperText type="error" style={styles.errorText}>{error}</HelperText>}
           </View>
         );
 
@@ -261,26 +314,146 @@ const FormSection = ({ title, fields, values, setFieldValue, errors, touched }) 
   };
 
   return (
-    <Card style={{ marginBottom: 16 }}>
+    <Card style={styles.card}>
       <Card.Title
         title={title}
+        titleStyle={styles.cardTitle}
         right={(props) => (
-          <Button
+          <IconButton
             {...props}
+            icon={expanded ? 'chevron-up' : 'chevron-down'}
+            size={24}
+            iconColor={C.textMuted}
             onPress={() => setExpanded(!expanded)}
-            mode="text"
-          >
-            {expanded ? 'Collapse' : 'Expand'}
-          </Button>
+          />
         )}
       />
       {expanded && (
-        <Card.Content>
+        <Card.Content style={styles.cardContent}>
           {fields.map(renderField)}
         </Card.Content>
       )}
     </Card>
   );
 };
+
+const styles = StyleSheet.create({
+  card: {
+    marginBottom: 16,
+    backgroundColor: C.surface,
+    borderWidth: 1,
+    borderColor: C.border,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  cardTitle: {
+    color: C.text,
+    fontSize: 13,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+  },
+  cardContent: {
+    paddingTop: 0,
+    paddingBottom: 16,
+  },
+  fieldContainer: {
+    marginBottom: 12,
+  },
+  fieldLabel: {
+    color: C.textMuted,
+    fontSize: 12,
+    fontWeight: '500',
+    marginBottom: 6,
+    letterSpacing: 0.3,
+  },
+  textInput: {
+    backgroundColor: C.surface2,
+    fontSize: 14,
+  },
+  selectButton: {
+    borderColor: C.border,
+    borderWidth: 1,
+    borderRadius: 8,
+    backgroundColor: C.surface2,
+  },
+  selectButtonContent: {
+    flexDirection: 'row-reverse',
+    justifyContent: 'space-between',
+  },
+  menu: {
+    backgroundColor: C.surface2,
+    borderWidth: 1,
+    borderColor: C.border,
+  },
+  menuContent: {
+    backgroundColor: C.surface2,
+  },
+  menuItemTitle: {
+    color: C.text,
+  },
+  menuItemSelected: {
+    backgroundColor: C.accentGlow,
+  },
+  toggleContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+    backgroundColor: C.surface2,
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: C.border,
+  },
+  toggleLabel: {
+    color: C.text,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  dateButton: {
+    borderColor: C.border,
+    borderWidth: 1,
+    borderRadius: 8,
+    backgroundColor: C.surface2,
+  },
+  dateButtonContent: {
+    flexDirection: 'row-reverse',
+    justifyContent: 'space-between',
+  },
+  modalContent: {
+    backgroundColor: C.surface,
+    padding: 20,
+    margin: 20,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: C.border,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modalTitle: {
+    color: C.text,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  modalInput: {
+    backgroundColor: C.surface2,
+    marginBottom: 20,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 12,
+  },
+  errorText: {
+    color: C.error,
+    fontSize: 11,
+    marginTop: 4,
+    marginLeft: 12,
+  },
+});
 
 export default FormSection;

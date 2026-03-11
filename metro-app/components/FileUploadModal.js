@@ -1,10 +1,26 @@
 // components/FileUploadModal.js
 import React, { useState } from 'react';
-import { View, Alert, Platform } from 'react-native';
-import { Modal, Button, Text, RadioButton, Portal, ActivityIndicator } from 'react-native-paper';
+import { View, Alert, Platform, StyleSheet } from 'react-native';
+import { Modal, Button, Text, RadioButton, Portal, ActivityIndicator, IconButton } from 'react-native-paper';
 import * as DocumentPicker from 'expo-document-picker';
 import { useAuth } from '../utils/authHelpers';
 import { saveMasterData, saveDailyData, checkCertAlerts } from '../utils/trainDataService';
+
+// Color palette matching HomeScreen
+const C = {
+  bg: '#0a0f1e',
+  surface: '#111827',
+  surface2: '#1a2235',
+  border: '#1e2d45',
+  accent: '#3b82f6',
+  accentGlow: '#3b82f622',
+  text: '#f0f4ff',
+  textMuted: '#6b7fa3',
+  textDim: '#3d506b',
+  success: '#00e876',
+  warning: '#f59e0b',
+  error: '#ef4444',
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CSV line parser — handles quoted fields with commas inside
@@ -372,63 +388,185 @@ const FileUploadModal = ({ visible, onDismiss, onSuccess }) => {
       <Modal
         visible={visible}
         onDismiss={onDismiss}
-        contentContainerStyle={{
-          backgroundColor: 'white',
-          padding: 20,
-          margin: 20,
-          borderRadius: 12,
-        }}
+        contentContainerStyle={styles.modalContainer}
       >
-        <Text variant="titleLarge" style={{ marginBottom: 4, textAlign: 'center', fontWeight: 'bold' }}>
-          📁 Bulk Upload
+        <View style={styles.modalHeader}>
+          <View style={styles.headerLeft}>
+            <IconButton icon="folder-upload" size={28} iconColor={C.accent} />
+            <Text variant="titleLarge" style={styles.modalTitle}>
+              Bulk Upload
+            </Text>
+          </View>
+          <IconButton
+            icon="close"
+            size={20}
+            iconColor={C.textMuted}
+            onPress={onDismiss}
+          />
+        </View>
+
+        <Text variant="bodySmall" style={styles.modalSubtitle}>
+          Fitness/branding → master record (overrideable)
         </Text>
-        <Text variant="bodySmall" style={{ marginBottom: 8, textAlign: 'center', color: '#888' }}>
-          Fitness/branding → master record (overrideable){'\n'}
+        <Text variant="bodySmall" style={[styles.modalSubtitle, { marginBottom: 16 }]}>
           Stabling / mileage / cleaning / jobs → daily record
         </Text>
 
         {/* File type selector */}
-        <RadioButton.Group onValueChange={setFileType} value={fileType}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-            <RadioButton value="csv" />
-            <Text>CSV  (.csv)</Text>
-          </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
-            <RadioButton value="xml" />
-            <Text>XML  (.xml)</Text>
-          </View>
-        </RadioButton.Group>
+        <View style={styles.radioGroup}>
+          <RadioButton.Group onValueChange={setFileType} value={fileType}>
+            <View style={styles.radioItem}>
+              <RadioButton value="csv" color={C.accent} />
+              <Text style={styles.radioLabel}>CSV (.csv)</Text>
+            </View>
+            <View style={styles.radioItem}>
+              <RadioButton value="xml" color={C.accent} />
+              <Text style={styles.radioLabel}>XML (.xml)</Text>
+            </View>
+          </RadioButton.Group>
+        </View>
 
         {/* Selected file name */}
         {fileName ? (
-          <Text variant="bodyMedium" style={{ marginBottom: 12, textAlign: 'center', color: '#16a34a' }}>
-            ✅ {fileName}
-          </Text>
+          <View style={styles.fileNameContainer}>
+            <IconButton icon="check-circle" size={18} iconColor={C.success} />
+            <Text variant="bodyMedium" style={styles.fileName}>
+              {fileName}
+            </Text>
+          </View>
         ) : null}
 
         {/* Progress / spinner */}
         {uploading ? (
-          <View style={{ alignItems: 'center', marginVertical: 20 }}>
-            <ActivityIndicator size="large" color="#1e293b" />
-            <Text style={{ marginTop: 10, color: '#666', fontSize: 13 }}>{progress}</Text>
+          <View style={styles.uploadingContainer}>
+            <ActivityIndicator size="large" color={C.accent} />
+            <Text style={styles.progressText}>{progress}</Text>
           </View>
         ) : (
           <Button
             mode="contained"
             onPress={pickFile}
-            style={{ marginBottom: 10, backgroundColor: '#1e293b' }}
+            style={styles.selectButton}
+            contentStyle={styles.buttonContent}
+            labelStyle={styles.buttonLabel}
             icon="file-upload"
           >
             {Platform.OS === 'ios' ? 'Choose File' : 'Select File'}
           </Button>
         )}
 
-        <Button mode="outlined" onPress={onDismiss} disabled={uploading}>
+        <Button
+          mode="outlined"
+          onPress={onDismiss}
+          disabled={uploading}
+          style={styles.cancelButton}
+          labelStyle={styles.cancelButtonLabel}
+        >
           {uploading ? 'Uploading...' : 'Cancel'}
         </Button>
       </Modal>
     </Portal>
   );
 };
+
+const styles = StyleSheet.create({
+  modalContainer: {
+    backgroundColor: C.surface,
+    padding: 20,
+    margin: 20,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: C.border,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  modalTitle: {
+    color: C.text,
+    fontSize: 20,
+    fontWeight: '700',
+    marginLeft: 8,
+  },
+  modalSubtitle: {
+    color: C.textMuted,
+    fontSize: 12,
+    textAlign: 'center',
+  },
+  radioGroup: {
+    backgroundColor: C.surface2,
+    borderRadius: 12,
+    padding: 12,
+    marginVertical: 16,
+    borderWidth: 1,
+    borderColor: C.border,
+  },
+  radioItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  radioLabel: {
+    color: C.text,
+    fontSize: 14,
+    marginLeft: 8,
+  },
+  fileNameContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: C.surface2,
+    padding: 8,
+    borderRadius: 8,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: C.success,
+  },
+  fileName: {
+    color: C.success,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  uploadingContainer: {
+    alignItems: 'center',
+    marginVertical: 20,
+    backgroundColor: C.surface2,
+    padding: 20,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: C.border,
+  },
+  progressText: {
+    marginTop: 10,
+    color: C.textMuted,
+    fontSize: 13,
+  },
+  selectButton: {
+    marginBottom: 10,
+    backgroundColor: C.accent,
+    borderRadius: 12,
+  },
+  buttonContent: {
+    paddingVertical: 8,
+  },
+  buttonLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#ffffff',
+  },
+  cancelButton: {
+    borderRadius: 12,
+    borderColor: C.border,
+  },
+  cancelButtonLabel: {
+    color: C.textMuted,
+  },
+});
 
 export default FileUploadModal;

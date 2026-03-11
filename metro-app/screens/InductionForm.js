@@ -1,7 +1,7 @@
 // screens/InductionForm.js
 import React, { useState } from 'react';
 import { View, ScrollView, KeyboardAvoidingView, Platform, Alert } from 'react-native';
-import { Button, Text, Snackbar } from 'react-native-paper';
+import { Button, Text, Snackbar, IconButton } from 'react-native-paper';
 import { Formik } from 'formik';
 import FormSection from '../components/FormSection';
 import { validationSchema } from '../utils/validationSchema';
@@ -166,7 +166,7 @@ export default function InductionForm({ navigation }) {
         if (failed.length) {
           Alert.alert('Partial Error', failed.map(f => f.error).join('\n'));
         } else {
-          setSnackbarMsg(`✅ Saved for ${values.trainId} on ${date}`);
+          setSnackbarMsg(`Saved for ${values.trainId} on ${date}`);
           setSnackbarVisible(true);
           resetForm({ values: { ...initialValues, entryDate: date } });
           setTimeout(() => navigation.navigate('Home'), 1500);
@@ -181,7 +181,7 @@ export default function InductionForm({ navigation }) {
     // Show expired alert (blocking) → save anyway option
     if (expired.length > 0) {
       Alert.alert(
-        '🚨 Expired Data',
+        'Expired Data',
         expired.map(a => `• ${a.message}`).join('\n'),
         [
           { text: 'Cancel', style: 'cancel' },
@@ -194,7 +194,7 @@ export default function InductionForm({ navigation }) {
     // Show warning (expiring soon) → confirm
     if (warnings.length > 0) {
       Alert.alert(
-        '⚠️ Expiry Warning',
+        'Expiry Warning',
         warnings.map(a => `• ${a.message}`).join('\n') + '\n\nProceed?',
         [
           { text: 'Cancel', style: 'cancel' },
@@ -208,21 +208,30 @@ export default function InductionForm({ navigation }) {
   };
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-      <ScrollView style={{ flex: 1, backgroundColor: '#f5f5f5' }}>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={styles.container}
+    >
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+      >
         <Formik initialValues={initialValues} validationSchema={validationSchema} onSubmit={handleSubmit}>
           {({ handleSubmit: fSubmit, values, setFieldValue, errors, touched }) => (
-            <View style={{ padding: 16 }}>
-              <Text variant="headlineMedium" style={{ marginBottom: 4, textAlign: 'center', fontWeight: 'bold' }}>
-                Train Induction Form
-              </Text>
-              <Text variant="bodySmall" style={{ marginBottom: 20, textAlign: 'center', color: '#888' }}>
-                Enter data for any date • Toggle fitness/branding to override master record
-              </Text>
+            <View style={styles.formContainer}>
+              <View style={styles.headerContainer}>
+                <IconButton icon="train" size={32} iconColor="#3b82f6" />
+                <Text variant="headlineMedium" style={styles.headerTitle}>
+                  Train Induction Form
+                </Text>
+                <Text variant="bodySmall" style={styles.headerSubtitle}>
+                  Enter data for any date • Toggle fitness/branding to override master record
+                </Text>
+              </View>
 
               {/* Train + Date */}
               <FormSection
-                title="🚆 Train & Date"
+                title="TRAIN & DATE"
                 fields={[
                   { name: 'trainId', label: 'Train ID *', type: 'select', options: TRAIN_IDS },
                   { name: 'entryDate', label: 'Entry Date (YYYY-MM-DD) *', type: 'text', placeholder: todayStr() },
@@ -232,7 +241,7 @@ export default function InductionForm({ navigation }) {
 
               {/* Fitness (master) */}
               <FormSection
-                title="✅ Fitness Certificates  [Master — overrides]"
+                title="FITNESS CERTIFICATES [Master — overrides]"
                 fields={[
                   { name: 'updateFitness', label: 'Update fitness record?', type: 'toggle' },
                   ...(values.updateFitness ? [
@@ -247,7 +256,7 @@ export default function InductionForm({ navigation }) {
 
               {/* Branding (master) */}
               <FormSection
-                title="🎨 Branding Priority  [Master — overrides]"
+                title="BRANDING PRIORITY [Master — overrides]"
                 fields={[
                   { name: 'updateBranding', label: 'Update branding record?', type: 'toggle' },
                   ...(values.updateBranding ? [
@@ -267,13 +276,15 @@ export default function InductionForm({ navigation }) {
                 values={values} setFieldValue={setFieldValue} errors={errors} touched={touched}
               />
 
-              <Text variant="labelSmall" style={{ textAlign: 'center', color: '#aaa', marginVertical: 10, letterSpacing: 1 }}>
-                ────── DAILY OPERATIONS DATA ──────
-              </Text>
+              <View style={styles.dividerContainer}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>DAILY OPERATIONS DATA</Text>
+                <View style={styles.dividerLine} />
+              </View>
 
               {/* Cleaning (daily) */}
               <FormSection
-                title="🧹 Cleaning Slot  [Daily]"
+                title="CLEANING SLOT [Daily]"
                 fields={[
                   { name: 'cleaningType', label: 'Type', type: 'select', options: ['Daily Clean', 'Detailing', 'Weekly Maintenance'] },
                   { name: 'cleaningSlotStart', label: 'Start Time (HH:MM)', type: 'text', placeholder: '23:00' },
@@ -286,7 +297,7 @@ export default function InductionForm({ navigation }) {
 
               {/* Stabling (daily) */}
               <FormSection
-                title="📍 Stabling  [Daily]"
+                title="STABLING [Daily]"
                 fields={[
                   { name: 'yard', label: 'Yard', type: 'select', options: ['Muttom Depot', 'Kalamassery Depot'] },
                   { name: 'trackNo', label: 'Track No', type: 'number' },
@@ -300,7 +311,7 @@ export default function InductionForm({ navigation }) {
 
               {/* Mileage (daily) */}
               <FormSection
-                title="📊 Mileage  [Daily]"
+                title="MILEAGE [Daily]"
                 fields={[
                   { name: 'currentMileageKm', label: 'Current Mileage (km)', type: 'number', placeholder: '288650' },
                 ]}
@@ -309,7 +320,7 @@ export default function InductionForm({ navigation }) {
 
               {/* Jobs (daily, optional) */}
               <FormSection
-                title="🔧 Job Card  [Daily, Optional]"
+                title="JOB CARD [Daily, Optional]"
                 fields={[
                   { name: 'jobId', label: 'Job ID', type: 'text', placeholder: 'JC-4471' },
                   { name: 'jobTask', label: 'Task Description', type: 'textarea' },
@@ -326,7 +337,8 @@ export default function InductionForm({ navigation }) {
                 onPress={fSubmit}
                 loading={loading}
                 disabled={loading}
-                style={{ marginTop: 20, marginBottom: 30, paddingVertical: 8, backgroundColor: '#1e293b' }}
+                style={styles.submitButton}
+                contentStyle={styles.submitButtonContent}
                 icon="send"
               >
                 {loading ? 'Saving...' : 'Submit Induction Data'}
@@ -340,10 +352,111 @@ export default function InductionForm({ navigation }) {
         visible={snackbarVisible}
         onDismiss={() => setSnackbarVisible(false)}
         duration={3000}
-        style={{ backgroundColor: '#16a34a' }}
+        style={styles.snackbar}
       >
-        {snackbarMsg}
+        <View style={styles.snackbarContent}>
+          <IconButton icon="check-circle" size={20} iconColor="#ffffff" style={styles.snackbarIcon} />
+          <Text style={styles.snackbarText}>{snackbarMsg}</Text>
+        </View>
       </Snackbar>
     </KeyboardAvoidingView>
   );
 }
+
+// ── Styles matching HomeScreen theme ──────────────────────────────────────────
+const C = {
+  bg: '#0a0f1e',
+  surface: '#111827',
+  surface2: '#1a2235',
+  border: '#1e2d45',
+  accent: '#3b82f6',
+  accentGlow: '#3b82f622',
+  text: '#f0f4ff',
+  textMuted: '#6b7fa3',
+  textDim: '#3d506b',
+  success: '#00e876',
+  warning: '#f59e0b',
+  error: '#ef4444',
+};
+
+const styles = {
+  container: {
+    flex: 1,
+    backgroundColor: C.bg,
+  },
+  scrollView: {
+    flex: 1,
+    backgroundColor: C.bg,
+  },
+  scrollContent: {
+    paddingBottom: 100,
+  },
+  formContainer: {
+    padding: 20,
+  },
+  headerContainer: {
+    alignItems: 'center',
+    marginBottom: 24,
+    backgroundColor: C.surface,
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: C.border,
+  },
+  headerTitle: {
+    color: C.text,
+    fontSize: 22,
+    fontWeight: '700',
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  headerSubtitle: {
+    color: C.textMuted,
+    fontSize: 12,
+    textAlign: 'center',
+  },
+  dividerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 20,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: C.border,
+  },
+  dividerText: {
+    color: C.textMuted,
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1.5,
+    marginHorizontal: 12,
+  },
+  submitButton: {
+    marginTop: 24,
+    marginBottom: 30,
+    backgroundColor: C.accent,
+    borderRadius: 14,
+  },
+  submitButtonContent: {
+    paddingVertical: 8,
+  },
+  snackbar: {
+    backgroundColor: C.success,
+  },
+  snackbarContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  snackbarIcon: {
+    margin: 0,
+    marginRight: 8,
+  },
+  snackbarText: {
+    color: '#000000',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+};
+
+// Note: FormSection component will need to be updated separately to match the theme

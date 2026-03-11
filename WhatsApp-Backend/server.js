@@ -142,7 +142,7 @@ function parseTrainMessage(messageText) {
         }
 
         if (!data.train_id) {
-            const trainMatch = messageText.match(/(?:train\s*(?:set|id)?[:\s]+)?(KMRC[-_]?\d+)/i);
+            const trainMatch = messageText.match(/(?:train\s*(?:set|id)?[:\s]+)?(KMRL[-_]?\d+)/i);
             if (trainMatch) data.train_id = trainMatch[1];
         }
 
@@ -520,7 +520,7 @@ async function initializeUserWhatsApp(userId, userEmail, userName) {
                     } else {
                         await message.reply(
                             `⚠️ *Could not process your message*\n\n` +
-                            `Please include Train Set ID (e.g., KMRC-012)`
+                            `Please include Train Set ID (e.g., KMRL-12)`
                         );
                     }
                 }

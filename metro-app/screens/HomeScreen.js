@@ -9,7 +9,7 @@ import {
   TouchableOpacity,
   StatusBar,
 } from 'react-native';
-import { Text, Avatar, Chip } from 'react-native-paper';
+import { Text, Avatar, Chip, IconButton } from 'react-native-paper';
 import { useAuth } from '../utils/authHelpers';
 import FileUploadModal from '../components/FileUploadModal';
 import PhotoInspectionModal from '../components/PhotoInspectionModal';
@@ -178,13 +178,13 @@ function ActionButton({ icon, label, subtitle, onPress, accent, outlined }) {
         ]}
       >
         <View style={[styles.actionIconBox, accent ? { backgroundColor: accent + '22' } : null]}>
-          <Text style={[styles.actionIcon, accent ? { color: accent } : null]}>{icon}</Text>
+          <IconButton icon={icon} size={24} iconColor={accent || '#f0f4ff'} style={styles.actionIconButton} />
         </View>
         <View style={styles.actionTextBox}>
           <Text style={styles.actionLabel}>{label}</Text>
           {subtitle ? <Text style={styles.actionSubtitle}>{subtitle}</Text> : null}
         </View>
-        <Text style={styles.actionChevron}>›</Text>
+        <IconButton icon="chevron-right" size={20} iconColor="#3d506b" />
       </TouchableOpacity>
     </Animated.View>
   );
@@ -194,7 +194,7 @@ function ActionButton({ icon, label, subtitle, onPress, accent, outlined }) {
 function FeatureBadge({ icon, label, desc }) {
   return (
     <View style={styles.featureBadge}>
-      <Text style={styles.featureBadgeIcon}>{icon}</Text>
+      <IconButton icon={icon} size={24} iconColor="#3b82f6" style={styles.featureBadgeIcon} />
       <View style={{ flex: 1 }}>
         <Text style={styles.featureBadgeLabel}>{label}</Text>
         <Text style={styles.featureBadgeDesc}>{desc}</Text>
@@ -306,37 +306,39 @@ export default function HomeScreen({ navigation }) {
           <Text style={styles.sectionTitle}>QUICK ACTIONS</Text>
 
           <ActionButton
-            icon="🚆"
+            icon="train"
             label="New Train Induction"
             subtitle="Log induction form for KMRL fleet"
             onPress={() => navigation.navigate('InductionForm')}
             accent="#3b82f6"
           />
           <ActionButton
-            icon="📷"
+            icon="camera"
             label="Photo Inspection (AI)"
             subtitle="Defect detection via camera"
             onPress={() => setPhotoModalVisible(true)}
             accent="#f97316"
           />
           <ActionButton
-            icon="📁"
+            icon="folder-upload"
             label="Bulk Upload"
             subtitle="Import via CSV or XML file"
             onPress={() => setUploadModalVisible(true)}
             accent="#8b5cf6"
           />
           <ActionButton
-            icon="📋"
-            label="View History"
-            subtitle="Past submissions & reports"
-            onPress={() => alert('Coming soon!')}
+            icon="clipboard-list"
+            label="My Task"
+            subtitle="Task assigned by admin"
+            onPress={() => navigation.navigate('Tasks')}
+            accent="#ca47ae"
           />
           <ActionButton
-            icon="📊"
-            label="Analytics"
-            subtitle="Fleet performance overview"
-            onPress={() => alert('Coming soon!')}
+            icon="history"
+            label="History & Analysis"
+            subtitle="Past submissions & reports"
+            onPress={() => navigation.navigate('History')}
+            accent="#85482e"
           />
         </View>
 
@@ -344,27 +346,23 @@ export default function HomeScreen({ navigation }) {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>SYSTEM CAPABILITIES</Text>
           <View style={styles.featuresCard}>
-            <FeatureBadge icon="🤖" label="AI-Driven Scheduling" desc="Predictive maintenance & optimal induction timing" />
+            <FeatureBadge icon="brain" label="AI-Driven Scheduling" desc="Predictive maintenance & optimal induction timing" />
             <View style={styles.featureDivider} />
-            <FeatureBadge icon="📡" label="Real-time IoT Sync" desc="Mileage, brake wear & HVAC sensor data" />
+            <FeatureBadge icon="access-point" label="Real-time IoT Sync" desc="Mileage, brake wear & HVAC sensor data" />
             <View style={styles.featureDivider} />
-            <FeatureBadge icon="🌐" label="Web Dashboard" desc="Live data on the KMRL web portal" />
+            <FeatureBadge icon="web" label="Web Dashboard" desc="Live data on the KMRL web portal" />
             <View style={styles.featureDivider} />
-            <FeatureBadge icon="📶" label="Offline Support" desc="Forms work without internet connection" />
+            <FeatureBadge icon="wifi-off" label="Offline Support" desc="Forms work without internet connection" />
             <View style={styles.featureDivider} />
-            <FeatureBadge icon="🔍" label="Photo AI Inspection" desc="Defect detection from train part photos" />
+            <FeatureBadge icon="image-search" label="Photo AI Inspection" desc="Defect detection from train part photos" />
           </View>
         </View>
 
         {/* ── Logout ──────────────────────────────────────────────────── */}
         <View style={styles.section}>
           <TouchableOpacity style={styles.logoutButton} onPress={signOut} activeOpacity={0.8}>
-            <Text style={styles.logoutButtonIcon}>⏻</Text>
+            <IconButton icon="power" size={18} iconColor="#ef4444" style={styles.logoutButtonIcon} />
             <Text style={styles.logoutButtonText}>Sign Out</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity onPress={() => navigation.navigate('Tasks')}>
-            <Text>My Tasks</Text>
           </TouchableOpacity>
         </View>
 
@@ -381,7 +379,7 @@ export default function HomeScreen({ navigation }) {
         onPress={() => navigation.navigate('InductionForm')}
         activeOpacity={0.85}
       >
-        <Text style={styles.fabIcon}>+</Text>
+        <IconButton icon="plus" size={28} iconColor="#fff" style={styles.fabIcon} />
       </TouchableOpacity>
 
       <FileUploadModal
@@ -460,14 +458,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#111827',
     borderRadius: 14,
-    paddingVertical: 15,
+    paddingVertical: 8,
     borderWidth: 1,
     borderColor: '#2a1f1f',
     gap: 10,
   },
   logoutButtonIcon: {
-    fontSize: 18,
-    color: '#ef4444',
+    margin: 0,
   },
   logoutButtonText: {
     fontSize: 15,
@@ -754,7 +751,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: C.surface,
     borderRadius: 14,
-    padding: 14,
+    padding: 8,
+    paddingRight: 4,
     marginBottom: 8,
     borderWidth: 1,
     borderColor: C.border,
@@ -763,17 +761,16 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   actionIconBox: {
-    width: 42,
-    height: 42,
+    width: 48,
+    height: 48,
     borderRadius: 12,
     backgroundColor: C.surface2,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 14,
   },
-  actionIcon: {
-    fontSize: 20,
-    color: C.text,
+  actionIconButton: {
+    margin: 0,
   },
   actionTextBox: {
     flex: 1,
@@ -810,9 +807,8 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   featureBadgeIcon: {
-    fontSize: 22,
+    margin: 0,
     width: 32,
-    textAlign: 'center',
   },
   featureBadgeLabel: {
     fontSize: 13,
@@ -867,9 +863,6 @@ const styles = StyleSheet.create({
     elevation: 10,
   },
   fabIcon: {
-    color: '#fff',
-    fontSize: 28,
-    fontWeight: '300',
-    marginTop: -2,
+    margin: 0,
   },
 });
