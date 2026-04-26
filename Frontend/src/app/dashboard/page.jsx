@@ -712,38 +712,55 @@ export default function Dashboard() {
   useEffect(() => {
     if (!authReady || !currentUser || !db || !selectedDates.length) {
       setDailyDocs([]);
+      setLoadingDaily(false);
       return;
     }
 
     setLoadingDaily(true);
     let cancelled = false;
+    const chunkDocs = new Map();
+    const initializedChunks = new Set();
 
     const chunks = [];
     for (let i = 0; i < selectedDates.length; i += 10) {
       chunks.push(selectedDates.slice(i, i + 10));
     }
 
-    Promise.all(
-      chunks.map(chunk =>
-        getDocs(query(collection(db, 'trainDailyData'), where('date', 'in', chunk)))
-          .then(snap => {
-            const docs = [];
-            snap.forEach(d => docs.push({ id: d.id, ...d.data() }));
-            return docs;
-          })
-          .catch((err) => {
-            console.error('[dailyData] getDocs error:', err);
-            return [];
-          })
-      )
-    ).then(results => {
-      if (!cancelled) {
-        setDailyDocs(results.flat());
-        setLoadingDaily(false);
-      }
-    });
+    const unsubscribeFns = chunks.map((chunk, idx) =>
+      onSnapshot(
+        query(collection(db, 'trainDailyData'), where('date', 'in', chunk)),
+        (snap) => {
+          if (cancelled) return;
+          const docs = [];
+          snap.forEach(d => docs.push({ id: d.id, ...d.data() }));
+          chunkDocs.set(idx, docs);
+          initializedChunks.add(idx);
 
-    return () => { cancelled = true; };
+          const merged = Array.from(chunkDocs.values()).flat();
+          setDailyDocs(merged);
+
+          if (initializedChunks.size === chunks.length) {
+            setLoadingDaily(false);
+          }
+        },
+        (err) => {
+          console.error('[dailyData] onSnapshot error:', err);
+          chunkDocs.set(idx, []);
+          initializedChunks.add(idx);
+          if (!cancelled) {
+            setDailyDocs(Array.from(chunkDocs.values()).flat());
+            if (initializedChunks.size === chunks.length) {
+              setLoadingDaily(false);
+            }
+          }
+        }
+      )
+    );
+
+    return () => {
+      cancelled = true;
+      unsubscribeFns.forEach(unsub => unsub());
+    };
   }, [authReady, currentUser, selectedDates]);
 
   const toggleDate = (d) =>

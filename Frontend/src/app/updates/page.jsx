@@ -2,10 +2,11 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { collection, query, where, onSnapshot, doc, updateDoc, deleteDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, deleteDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { Train, CheckCircle, XCircle, Clock, User, Calendar, AlertCircle, MessageSquare } from 'lucide-react';
 import WhatsAppIntegration from '../components/WhatsAppIntegration';
+import { dailyDocId } from '../utils/trainDataService';
 
 const UpdatesPage = () => {
   const [pendingUpdates, setPendingUpdates] = useState([]);
@@ -45,6 +46,8 @@ const UpdatesPage = () => {
       if (!update) throw new Error('Update not found');
 
       const batch = writeBatch(db);
+      const trainIds = getTrainIds(update);
+      const approvalDate = update.date || new Date().toISOString().split('T')[0];
 
       // Mark induction as approved
       batch.update(doc(db, 'trainInduction', updateId), {
@@ -53,20 +56,61 @@ const UpdatesPage = () => {
         syncStatus: 'approved'
       });
 
-      // Write everything as one doc into trainDailyData (already in your rules)
-      const dailyRef = doc(collection(db, 'trainDailyData'));
-      batch.set(dailyRef, {
-        date: update.date || new Date().toISOString().split('T')[0],
-        branding_priorities: update.branding_priorities || [],
-        cleaning_slots: update.cleaning_slots || [],
-        stabling_geometry: update.stabling_geometry || [],
-        fitness_certificates: update.fitness_certificates || [],
-        job_card_status: update.job_card_status || [],
-        mileage: update.mileage || [],
-        source: 'whatsapp',
-        approvedAt: serverTimestamp(),
-        submittedBy: update.whatsappInfo?.name || update.userName,
-        sourceId: updateId,
+      // Promote approved submissions into the collections the dashboard actually reads:
+      // - trainMasterData: one doc per train (fitness + branding)
+      // - trainDailyData: one doc per train per date (mileage + stabling + cleaning + jobs)
+      trainIds.forEach((trainId) => {
+        const brandingForTrain = (update.branding_priorities || []).filter(item => item.train_id === trainId);
+        const cleaningForTrain = (update.cleaning_slots || []).filter(item => item.train_id === trainId);
+        const jobsForTrain = (update.job_card_status || []).filter(item => item.train_id === trainId);
+        const stablingForTrain = (update.stabling_geometry || []).find(item => item.train_id === trainId) || null;
+        const mileageForTrain = (update.mileage || []).find(item => item.train_id === trainId) || null;
+        const hasMasterPayload = brandingForTrain.length > 0 || (update.fitness_certificates && trainId);
+        const hasDailyPayload =
+          cleaningForTrain.length > 0 ||
+          jobsForTrain.length > 0 ||
+          !!stablingForTrain ||
+          !!mileageForTrain;
+
+        if (hasMasterPayload) {
+          const masterRef = doc(db, 'trainMasterData', trainId);
+          const masterPayload = {
+            train_id: trainId,
+            updatedAt: serverTimestamp(),
+            updatedBy: update.userName,
+            updatedByEmail: update.userEmail,
+            source: 'whatsapp',
+            sourceId: updateId,
+          };
+
+          if (brandingForTrain.length > 0) {
+            masterPayload.branding_priorities = brandingForTrain;
+          }
+
+          if (update.fitness_certificates) {
+            masterPayload.fitness_certificates = update.fitness_certificates;
+          }
+
+          batch.set(masterRef, masterPayload, { merge: true });
+        }
+
+        if (hasDailyPayload) {
+          const dailyRef = doc(db, 'trainDailyData', dailyDocId(trainId, approvalDate));
+          batch.set(dailyRef, {
+            train_id: trainId,
+            date: approvalDate,
+            cleaning_slots: cleaningForTrain,
+            stabling_geometry: stablingForTrain,
+            mileage: mileageForTrain,
+            job_card_status: jobsForTrain,
+            source: 'whatsapp',
+            approvedAt: serverTimestamp(),
+            submittedBy: update.whatsappInfo?.name || update.userName,
+            submittedByEmail: update.userEmail,
+            sourceId: updateId,
+            status: 'approved',
+          });
+        }
       });
 
       await batch.commit();
@@ -197,9 +241,15 @@ const UpdatesPage = () => {
                   </div>
                   <span className={`px-3 py-1 text-xs font-medium rounded-full ${update.source === 'manual_entry'
                       ? 'bg-blue-100 text-blue-800'
-                      : 'bg-purple-100 text-purple-800'
+                      : update.source === 'whatsapp'
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-purple-100 text-purple-800'
                     }`}>
-                    {update.source === 'manual_entry' ? 'Manual Entry' : 'Bulk Upload'}
+                    {update.source === 'manual_entry'
+                      ? 'Manual Entry'
+                      : update.source === 'whatsapp'
+                        ? 'WhatsApp'
+                        : 'Bulk Upload'}
                   </span>
                 </div>
 

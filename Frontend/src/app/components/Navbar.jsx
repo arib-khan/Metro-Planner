@@ -66,6 +66,7 @@ const Navbar = () => {
     { name: 'Inspection', href: '/inspection', icon: Wrench },
     { name: 'Users', href: '/users', icon: Users },
     { name: 'Job Cards', href: '/job-card', icon: ClipboardList },
+    { name: 'Stations', href: '/Stationmanagement', icon: ClipboardList },
   ];
 
   const isActive = (path) => path === '/dashboard' ? pathname === '/dashboard' : pathname.startsWith(path);

@@ -50,6 +50,16 @@ export default function LandingPage() {
               </div>
             </div>
             <div className="flex items-center space-x-3">
+              <Link href="/station">
+                <button className="px-5 py-2 text-gray-700 hover:text-gray-900 font-medium rounded-lg hover:bg-gray-100 transition-all duration-200">
+                  Stations
+                </button>
+              </Link>
+              <Link href="/advertise">
+                <button className="px-5 py-2 text-gray-700 hover:text-gray-900 font-medium rounded-lg hover:bg-gray-100 transition-all duration-200">
+                  Advertise
+                </button>
+              </Link>
               <Link href="/login">
                 <button className="px-5 py-2 text-gray-700 hover:text-gray-900 font-medium rounded-lg hover:bg-gray-100 transition-all duration-200">
                   Sign In

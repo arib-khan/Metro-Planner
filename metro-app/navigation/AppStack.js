@@ -5,7 +5,8 @@ import HomeScreen from '../screens/HomeScreen';
 import InductionForm from '../screens/InductionForm';
 import SuccessScreen from '../screens/SuccessScreen';
 import TasksScreen from '../screens/TasksScreen';
-import HistoryScreen from '../screens/HistoryScreen'; // ← new
+import HistoryScreen from '../screens/HistoryScreen';
+import ProfileScreen from '../screens/ProfileScreen'; // ← new
 
 const Stack = createStackNavigator();
 
@@ -51,11 +52,15 @@ export default function AppStack() {
         component={TasksScreen}
         options={{ title: 'My Tasks' }}
       />
-      {/* ── NEW ── */}
       <Stack.Screen
         name="History"
         component={HistoryScreen}
         options={{ title: 'History & Analysis', headerTitleAlign: 'center' }}
+      />
+      <Stack.Screen
+        name="Profile"
+        component={ProfileScreen}
+        options={{ title: 'My Profile', headerTitleAlign: 'center' }}
       />
     </Stack.Navigator>
   );
