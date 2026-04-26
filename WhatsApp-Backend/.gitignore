@@ -31,3 +31,6 @@ Thumbs.db
 
 # Test & local files
 text.txt
+# WhatsApp session/cache (very important to ignore)
+.wwwebjs_auth/
+.wwwebjs_cache/
