@@ -53,7 +53,7 @@ export default function StationsIndex() {
                                     </a>
                                     {/* Line segment */}
                                     {i < STATIONS.length - 1 && (
-                                        <div className="w-5 h-0.5 bg-blue-600 flex-shrink-0" />
+                                        <div className="w-5 h-0.5 bg-blue-600 shrink-0" />
                                     )}
                                 </div>
                             );
@@ -114,7 +114,7 @@ export default function StationsIndex() {
                 </div>
 
                 <p className="text-center text-xs text-gray-700 mt-8">
-                    Each station page auto-announces trains using your browser's built-in Web Speech API — no server or API key needed.
+                    Each station page auto-announces trains using your browser&apos;s built-in Web Speech API — no server or API key needed.
                 </p>
             </main>
         </div>
