@@ -492,7 +492,11 @@ async function initializeUserWhatsApp(userId, userEmail, userName) {
                     messageText.includes('train') ||
                     messageText.includes('depot') ||
                     messageText.includes('mileage') ||
-                    messageText.includes('kmrc')
+                    messageText.includes('kmrc') ||
+                    // BUG FIX 3a: 'kmrl' was missing from the keyword filter — the reply
+                    // message told users to send "KMRL-12" but that keyword was never matched,
+                    // so those messages were silently ignored and never saved to Firestore.
+                    messageText.includes('kmrl')
                 ) {
                     const parsedData = parseTrainMessage(message.body);
 
@@ -505,6 +509,13 @@ async function initializeUserWhatsApp(userId, userEmail, userName) {
                             userName: userName,
                             userEmail: userEmail
                         }, userId);
+
+                        // BUG FIX 3b: Explicitly enforce the fields the dashboard query depends on.
+                        // If convertToFirestoreFormat ever fails to set these, the document would
+                        // be saved but never appear on the dashboard (wrong status) or show the
+                        // wrong badge (wrong source).
+                        firestoreData.status = 'submitted';
+                        firestoreData.source = 'whatsapp';
 
                         const docRef = await db.collection('trainInduction').add(firestoreData);
                         console.log(`✅ Data saved by ${userEmail}:`, docRef.id);

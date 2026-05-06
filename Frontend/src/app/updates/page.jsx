@@ -87,8 +87,25 @@ const UpdatesPage = () => {
             masterPayload.branding_priorities = brandingForTrain;
           }
 
+          // Normalise fitness_certificates:
+          //   WhatsApp saves an array, InductionForm saves a plain object.
+          //   Only write to master if there is actual data — an empty array means
+          //   the WhatsApp message had no fitness fields and we must NOT overwrite
+          //   the existing record with blank values.
           if (update.fitness_certificates) {
-            masterPayload.fitness_certificates = update.fitness_certificates;
+            const rawCerts = update.fitness_certificates;
+            const certArray = Array.isArray(rawCerts)
+              ? rawCerts
+              : [{ ...rawCerts, train_id: rawCerts.train_id || trainId }];
+            const certForTrain = certArray.filter(c => !c.train_id || c.train_id === trainId);
+            // Guard: skip write if every field is empty (no real data submitted)
+            const hasData = certForTrain.some(c =>
+              c.rolling_stock_validity || c.signalling_validity ||
+              c.telecom_validity || (c.status && c.status !== 'Requires Check')
+            );
+            if (hasData) {
+              masterPayload.fitness_certificates = certForTrain;
+            }
           }
 
           batch.set(masterRef, masterPayload, { merge: true });
@@ -181,7 +198,7 @@ const UpdatesPage = () => {
           <h2 className="text-3xl font-bold text-gray-900">Pending Updates</h2>
           <p className="text-sm text-gray-500">Review and approve train induction submissions</p>
         </div>
-        <WhatsAppIntegration />
+        {/* <WhatsAppIntegration /> */}
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
@@ -240,10 +257,10 @@ const UpdatesPage = () => {
                     </div>
                   </div>
                   <span className={`px-3 py-1 text-xs font-medium rounded-full ${update.source === 'manual_entry'
-                      ? 'bg-blue-100 text-blue-800'
-                      : update.source === 'whatsapp'
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-purple-100 text-purple-800'
+                    ? 'bg-blue-100 text-blue-800'
+                    : update.source === 'whatsapp'
+                      ? 'bg-green-100 text-green-800'
+                      : 'bg-purple-100 text-purple-800'
                     }`}>
                     {update.source === 'manual_entry'
                       ? 'Manual Entry'

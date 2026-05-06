@@ -19,6 +19,7 @@ import {
     Activity, Hash, Calendar, AlertTriangle,
     CheckCircle2, Wrench, AlertCircle, LogOut
 } from 'lucide-react';
+import WhatsAppIntegration from '../components/WhatsAppIntegration';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const getInitials = (name, email) => {
@@ -60,7 +61,7 @@ const fmtDateTime = (ts) => {
 const Toast = ({ msg, type }) => (
     <div className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-2xl text-sm font-semibold
     ${type === 'error' ? 'bg-red-600 text-white' : 'bg-gray-900 text-white'}`}>
-        {type === 'error' ? <AlertCircle className="w-4 h-4 flex-shrink-0" /> : <CheckCircle2 className="w-4 h-4 flex-shrink-0" />}
+        {type === 'error' ? <AlertCircle className="w-4 h-4 shrink-0" /> : <CheckCircle2 className="w-4 h-4 shrink-0" />}
         {msg}
     </div>
 );
@@ -409,6 +410,7 @@ export default function UserProfilePage() {
                         </div>
                     </Card>
                 </div>
+                <WhatsAppIntegration />
             </div>
         </div>
     );

@@ -67,6 +67,16 @@ function todayStr() {
     return new Date().toISOString().split('T')[0];
 }
 
+// Extend Window to include Razorpay (loaded dynamically via CDN script)
+declare global {
+    interface Window {
+        Razorpay: new (options: Record<string, unknown>) => {
+            open: () => void;
+            on: (event: string, handler: (response: unknown) => void) => void;
+        };
+    }
+}
+
 // Load Razorpay script
 function loadRazorpay() {
     return new Promise((resolve) => {

@@ -36,8 +36,6 @@ const daysUntil = (dateStr) => {
   return Math.ceil((new Date(dateStr) - new Date()) / (1000 * 60 * 60 * 24));
 };
 
-
-
 // ── Badge component ───────────────────────────────────────────────────────────
 const Badge = ({ label, color = 'gray' }) => {
   const cls = {
@@ -61,7 +59,7 @@ const AlertBanner = ({ alerts, onDismiss }) => {
     <div className="mb-4 space-y-2">
       {expired.length > 0 && (
         <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
-          <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+          <AlertTriangle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
             <p className="font-bold text-red-800 text-sm mb-1">🚨 {expired.length} Expired Certificate{expired.length > 1 ? 's' : ''}</p>
             <ul className="text-xs text-red-700 space-y-0.5">
@@ -69,14 +67,14 @@ const AlertBanner = ({ alerts, onDismiss }) => {
               {expired.length > 5 && <li className="font-semibold">• ...and {expired.length - 5} more</li>}
             </ul>
           </div>
-          <button onClick={() => onDismiss('expired')} className="text-red-400 hover:text-red-600 flex-shrink-0">
+          <button onClick={() => onDismiss('expired')} className="text-red-400 hover:text-red-600 shrink-0">
             <X className="w-4 h-4" />
           </button>
         </div>
       )}
       {warnings.length > 0 && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
-          <Bell className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+          <Bell className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
             <p className="font-bold text-amber-800 text-sm mb-1">⚠️ {warnings.length} Expiring Soon (within 7 days)</p>
             <ul className="text-xs text-amber-700 space-y-0.5">
@@ -84,7 +82,7 @@ const AlertBanner = ({ alerts, onDismiss }) => {
               {warnings.length > 5 && <li className="font-semibold">• ...and {warnings.length - 5} more</li>}
             </ul>
           </div>
-          <button onClick={() => onDismiss('warning')} className="text-amber-400 hover:text-amber-600 flex-shrink-0">
+          <button onClick={() => onDismiss('warning')} className="text-amber-400 hover:text-amber-600 shrink-0">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -143,9 +141,28 @@ const DatePicker = ({ selectedDates, onToggle, onClear }) => {
 // ── Train Detail Panel ────────────────────────────────────────────────────────
 const TrainDetail = ({ trainId, masterData, dailyData, selectedDates, allTrips = [], nowTime, onClose, taskJobs = [] }) => {
   const [tab, setTab] = useState('overview');
-  const [allTrainTasks, setAllTrainTasks] = useState(taskJobs); // starts with passed-in blocked jobs, then loads all
+  const [allTrainTasks, setAllTrainTasks] = useState(taskJobs);
+  const [allMileageHistory, setAllMileageHistory] = useState(null); // null = loading
 
-  // Fetch ALL tasks for this train when panel opens (not just high-priority blocked ones)
+  // Fetch ALL daily docs for this train (mileage history — independent of selectedDates)
+  useEffect(() => {
+    if (!trainId || !db) return;
+    let cancelled = false;
+    // setAllMileageHistory(null);
+    getDocs(query(collection(db, 'trainDailyData'), where('train_id', '==', trainId)))
+      .then(snap => {
+        if (cancelled) return;
+        const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        setAllMileageHistory(docs);
+      })
+      .catch(err => {
+        console.error('[all-mileage]', err);
+        if (!cancelled) setAllMileageHistory([]);
+      });
+    return () => { cancelled = true; };
+  }, [trainId]);
+
+  // Fetch ALL tasks for this train when panel opens
   useEffect(() => {
     if (!trainId || !db) return;
     let cancelled = false;
@@ -168,19 +185,17 @@ const TrainDetail = ({ trainId, masterData, dailyData, selectedDates, allTrips =
   const today = todayStr();
 
   // Aggregate daily data across selected dates
-  const allMileage = dailyData
+  const allMileage = (allMileageHistory ?? dailyData)
     .filter(d => d.mileage)
     .sort((a, b) => a.date.localeCompare(b.date))
     .map(d => ({ date: d.date.slice(5), km: d.mileage.current_mileage_km }));
 
   const latestDaily = [...dailyData].sort((a, b) => b.date.localeCompare(a.date))[0];
   const latestMileage = latestDaily?.mileage?.current_mileage_km;
-  // Jobs from tasks collection — all priorities for this train
   const allJobs = allTrainTasks;
   const allCleaning = dailyData.flatMap(d => (d.cleaning_slots || []).map(c => ({ ...c, date: d.date })));
   const stabling = latestDaily?.stabling_geometry;
 
-  // Cert expiry alerts for this train (vs today)
   const certAlerts = fitness ? checkCertAlerts(fitness, today, trainId) : [];
   const brandingAlerts = checkBrandingAlerts(branding, today, trainId);
 
@@ -192,8 +207,16 @@ const TrainDetail = ({ trainId, masterData, dailyData, selectedDates, allTrips =
     { id: 'jobs', label: 'Jobs', icon: Wrench },
   ];
 
+  // ✅ Fix #6: Use today (or the most recent selected date) as the canonical
+  // reference date for the active branding check — consistent with the stat card.
+  const referenceDate = selectedDates.length > 0
+    ? selectedDates[selectedDates.length - 1]
+    : today;
+
   const activeBranding = branding.filter(b =>
-    selectedDates.some(d => isBrandingActiveOn(b, d))
+    selectedDates.length > 0
+      ? selectedDates.some(d => isBrandingActiveOn(b, d))
+      : isBrandingActiveOn(b, referenceDate)
   );
 
   return (
@@ -252,7 +275,6 @@ const TrainDetail = ({ trainId, masterData, dailyData, selectedDates, allTrips =
           {/* OVERVIEW */}
           {tab === 'overview' && (
             <div className="space-y-4">
-              {/* Expiry alerts inside panel */}
               {(certAlerts.length > 0 || brandingAlerts.length > 0) && (
                 <div className="bg-red-50 border border-red-200 rounded-xl p-4">
                   <p className="font-bold text-red-800 text-sm mb-2 flex items-center gap-1.5">
@@ -269,10 +291,14 @@ const TrainDetail = ({ trainId, masterData, dailyData, selectedDates, allTrips =
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div className="bg-slate-50 border rounded-xl p-4">
                   <p className="text-xs text-gray-400 mb-1">Current Mileage</p>
-                  {latestMileage != null
-                    ? <><p className="text-xl font-bold">{latestMileage.toLocaleString()}</p><p className="text-xs text-gray-400">km</p></>
-                    : <p className="text-sm text-gray-300 italic mt-1">Not uploaded</p>
-                  }
+                  {(() => {
+                    const latest = (allMileageHistory ?? dailyData)
+                      .filter(d => d.mileage)
+                      .sort((a, b) => b.date.localeCompare(a.date))[0];
+                    return latest
+                      ? <><p className="text-xl font-bold">{latest.mileage.current_mileage_km.toLocaleString()}</p><p className="text-xs text-gray-400">km · as of {latest.date}</p></>
+                      : <p className="text-sm text-gray-300 italic mt-1">Not uploaded</p>;
+                  })()}
                 </div>
                 <div className={`border rounded-xl p-4 ${!fitness ? 'bg-gray-50' : fitness.status === 'Fit for Service' ? 'bg-emerald-50' : 'bg-red-50'}`}>
                   <p className="text-xs text-gray-400 mb-1">Fitness</p>
@@ -308,7 +334,7 @@ const TrainDetail = ({ trainId, masterData, dailyData, selectedDates, allTrips =
                       <div key={k}><p className="text-xs text-gray-400">{k}</p><p className="font-medium">{v}</p></div>
                     ))}
                   </div>
-                  {stabling.remarks && <p className="text-xs text-gray-400 mt-2 italic">"{stabling.remarks}"</p>}
+                  {stabling.remarks && <p className="text-xs text-gray-400 mt-2 italic">&quot;{stabling.remarks}&quot;</p>}
                 </div>
               ) : (
                 <div className="border border-dashed rounded-xl p-4 text-center text-gray-300 text-sm">
@@ -342,60 +368,139 @@ const TrainDetail = ({ trainId, masterData, dailyData, selectedDates, allTrips =
           )}
 
           {/* MILEAGE */}
-          {tab === 'mileage' && (
-            <div className="space-y-4">
-              {allMileage.length === 0 ? (
-                <div className="border border-dashed rounded-xl p-12 text-center text-gray-300">
-                  <TrendingUp className="w-10 h-10 mx-auto mb-2 opacity-40" />
-                  <p className="text-sm">No mileage data uploaded for selected date{selectedDates.length > 1 ? 's' : ''}.</p>
-                  <p className="text-xs mt-1">Submit an induction form with a mileage reading to see data here.</p>
+          {tab === 'mileage' && (() => {
+            // Use allMileageHistory (all-time) if loaded, else fall back to dailyData
+            const sourceData = allMileageHistory ?? dailyData;
+            const isLoading = allMileageHistory === null;
+
+            const mileageSorted = [...sourceData]
+              .filter(d => d.mileage)
+              .sort((a, b) => a.date.localeCompare(b.date));
+
+            const mileageRows = [...mileageSorted].reverse(); // newest first for table
+
+            const mileageWithDelta = mileageSorted.map((d, i) => {
+              const prev = mileageSorted[i - 1];
+              const delta = prev ? d.mileage.current_mileage_km - prev.mileage.current_mileage_km : null;
+              return { ...d, delta };
+            });
+
+            const chartData = mileageSorted.map(d => ({
+              date: d.date.slice(5),
+              km: d.mileage.current_mileage_km,
+            }));
+
+            const totalGain = mileageSorted.length > 1
+              ? mileageSorted[mileageSorted.length - 1].mileage.current_mileage_km - mileageSorted[0].mileage.current_mileage_km
+              : null;
+
+            if (isLoading) {
+              return (
+                <div className="flex items-center justify-center py-16 text-gray-400 text-sm gap-2">
+                  <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+                  Loading mileage history…
                 </div>
-              ) : (
-                <>
-                  {allMileage.length > 1 ? (
-                    <div className="border rounded-xl p-4">
-                      <h4 className="text-sm font-semibold text-gray-700 mb-4">Mileage Progression</h4>
-                      <ResponsiveContainer width="100%" height={220}>
-                        <AreaChart data={allMileage}>
-                          <defs>
-                            <linearGradient id="mg" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="#334155" stopOpacity={0.12} />
-                              <stop offset="95%" stopColor="#334155" stopOpacity={0} />
-                            </linearGradient>
-                          </defs>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                          <XAxis dataKey="date" tick={{ fontSize: 10 }} />
-                          <YAxis tick={{ fontSize: 10 }} tickFormatter={v => `${Math.round(v / 1000)}k`} />
-                          <Tooltip formatter={v => [`${v.toLocaleString()} km`]} />
-                          <Area type="monotone" dataKey="km" stroke="#334155" strokeWidth={2} fill="url(#mg)" />
-                        </AreaChart>
-                      </ResponsiveContainer>
-                    </div>
-                  ) : (
-                    <div className="border rounded-xl p-4 text-center text-gray-400 text-sm">
-                      Select multiple dates to see mileage trend chart.
-                    </div>
-                  )}
-                  <div className="border rounded-xl overflow-hidden">
-                    <table className="w-full text-sm">
-                      <thead className="bg-gray-50"><tr>
-                        <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500">Date</th>
-                        <th className="text-right px-4 py-2.5 text-xs font-semibold text-gray-500">Mileage (km)</th>
-                      </tr></thead>
-                      <tbody>
-                        {[...dailyData].sort((a, b) => b.date.localeCompare(a.date)).map((d, i) => d.mileage && (
-                          <tr key={i} className="border-t hover:bg-gray-50">
-                            <td className="px-4 py-2.5 text-gray-600">{d.date}</td>
-                            <td className="px-4 py-2.5 text-right font-mono font-medium">{d.mileage.current_mileage_km.toLocaleString()}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+              );
+            }
+
+            return (
+              <div className="space-y-4">
+                {mileageRows.length === 0 ? (
+                  <div className="border border-dashed rounded-xl p-12 text-center text-gray-300">
+                    <TrendingUp className="w-10 h-10 mx-auto mb-2 opacity-40" />
+                    <p className="text-sm">No mileage data uploaded yet.</p>
+                    <p className="text-xs mt-1">Submit an induction form with a mileage reading to see data here.</p>
                   </div>
-                </>
-              )}
-            </div>
-          )}
+                ) : (
+                  <>
+                    {/* Summary cards */}
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="bg-slate-50 border rounded-xl p-3 text-center">
+                        <p className="text-xs text-gray-400 mb-1">Latest Reading</p>
+                        <p className="text-lg font-bold text-slate-800">{mileageRows[0].mileage.current_mileage_km.toLocaleString()}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">km · {mileageRows[0].date}</p>
+                      </div>
+                      <div className="bg-slate-50 border rounded-xl p-3 text-center">
+                        <p className="text-xs text-gray-400 mb-1">Records</p>
+                        <p className="text-lg font-bold text-slate-800">{mileageRows.length}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">days uploaded</p>
+                      </div>
+                      <div className={`border rounded-xl p-3 text-center ${totalGain != null && totalGain > 0 ? 'bg-emerald-50' : 'bg-slate-50'}`}>
+                        <p className="text-xs text-gray-400 mb-1">Total Gain</p>
+                        <p className={`text-lg font-bold ${totalGain != null && totalGain > 0 ? 'text-emerald-700' : 'text-slate-800'}`}>
+                          {totalGain != null ? `+${totalGain.toLocaleString()}` : '—'}
+                        </p>
+                        <p className="text-xs text-gray-400 mt-0.5">km over period</p>
+                      </div>
+                    </div>
+
+                    {/* Trend chart */}
+                    <div className="border rounded-xl p-4">
+                      <h4 className="text-sm font-semibold text-gray-700 mb-1 flex items-center gap-1.5">
+                        <TrendingUp className="w-4 h-4" /> Mileage Trend
+                      </h4>
+                      <p className="text-xs text-gray-400 mb-3">All uploaded readings — newest on right</p>
+                      {chartData.length === 1 ? (
+                        <div className="flex items-center justify-center h-16 text-sm text-gray-400">
+                          Only one reading uploaded — upload more dates to see trend.
+                        </div>
+                      ) : (
+                        <ResponsiveContainer width="100%" height={220}>
+                          <AreaChart data={chartData}>
+                            <defs>
+                              <linearGradient id="mg" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#334155" stopOpacity={0.15} />
+                                <stop offset="95%" stopColor="#334155" stopOpacity={0} />
+                              </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                            <XAxis dataKey="date" tick={{ fontSize: 10 }} />
+                            <YAxis tick={{ fontSize: 10 }} tickFormatter={v => `${Math.round(v / 1000)}k`} width={38} />
+                            <Tooltip formatter={v => [`${v.toLocaleString()} km`, 'Mileage']} />
+                            <Area type="monotone" dataKey="km" stroke="#334155" strokeWidth={2} fill="url(#mg)" dot={{ r: 3, fill: '#334155' }} activeDot={{ r: 5 }} />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      )}
+                    </div>
+
+                    {/* History table with delta */}
+                    <div className="border rounded-xl overflow-hidden">
+                      <div className="bg-gray-50 px-4 py-2.5 flex items-center justify-between">
+                        <span className="text-xs font-semibold text-gray-500">Mileage History</span>
+                        <span className="text-xs text-gray-400">{mileageRows.length} records</span>
+                      </div>
+                      <table className="w-full text-sm">
+                        <thead className="bg-gray-50 border-t"><tr>
+                          <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500">Date</th>
+                          <th className="text-right px-4 py-2.5 text-xs font-semibold text-gray-500">Mileage (km)</th>
+                          <th className="text-right px-4 py-2.5 text-xs font-semibold text-gray-500">Daily Gain</th>
+                        </tr></thead>
+                        <tbody>
+                          {mileageWithDelta.slice().reverse().map((d, i) => (
+                            <tr key={i} className="border-t hover:bg-gray-50">
+                              <td className="px-4 py-2.5 text-gray-600 font-medium">{d.date}</td>
+                              <td className="px-4 py-2.5 text-right font-mono font-semibold text-slate-800">
+                                {d.mileage.current_mileage_km.toLocaleString()}
+                              </td>
+                              <td className="px-4 py-2.5 text-right">
+                                {d.delta != null ? (
+                                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${d.delta > 0 ? 'bg-emerald-100 text-emerald-700' : d.delta < 0 ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-400'}`}>
+                                    {d.delta > 0 ? `+${d.delta.toLocaleString()}` : d.delta.toLocaleString()} km
+                                  </span>
+                                ) : (
+                                  <span className="text-xs text-gray-300">—</span>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                )}
+              </div>
+            );
+          })()}
 
           {/* BRANDING */}
           {tab === 'branding' && (
@@ -569,7 +674,7 @@ const TrainDetail = ({ trainId, masterData, dailyData, selectedDates, allTrips =
                           {j.department || j.assignedToName || '—'}
                         </p>
                       </div>
-                      <div className="flex gap-1.5 flex-wrap justify-end flex-shrink-0">
+                      <div className="flex gap-1.5 flex-wrap justify-end shrink-0">
                         <Badge label={priorityLabel} color={priorityColor} />
                         <Badge label={statusLabel} color={statusColor} />
                       </div>
@@ -591,7 +696,7 @@ const TrainDetail = ({ trainId, masterData, dailyData, selectedDates, allTrips =
 
 // ── Main Dashboard ────────────────────────────────────────────────────────────
 export default function Dashboard() {
-  const [authReady, setAuthReady] = useState(false);   // true once Firebase Auth session is restored
+  const [authReady, setAuthReady] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [masterData, setMasterData] = useState({});
   const [dailyDocs, setDailyDocs] = useState([]);
@@ -605,16 +710,13 @@ export default function Dashboard() {
   const [loadingMaster, setLoadingMaster] = useState(true);
   const [loadingDaily, setLoadingDaily] = useState(false);
   const [nowTime, setNowTime] = useState(() => nowMin());
-  const [blockedJobs, setBlockedJobs] = useState([]);          // high-priority unresolved job card tasks
-  const [blockedTrainIds, setBlockedTrainIds] = useState(new Set()); // Set<trainId>
-  const [allOpenTasksCount, setAllOpenTasksCount] = useState(0); // all open/in-progress job card tasks
+  const [blockedJobs, setBlockedJobs] = useState([]);
+  const [blockedTrainIds, setBlockedTrainIds] = useState(new Set());
+  const [allOpenTasksCount, setAllOpenTasksCount] = useState(0);
 
   const masterUnsubRef = useRef(null);
 
   // ── Step 1: wait for auth session to restore ────────────────────────────────
-  // This MUST run before any Firestore query. Firebase Auth restores the
-  // persisted session asynchronously — firing onSnapshot before this completes
-  // means request.auth is null on the server → "Missing or insufficient permissions".
   useEffect(() => {
     waitForAuthReady().then((user) => {
       setCurrentUser(user);
@@ -622,16 +724,13 @@ export default function Dashboard() {
     });
   }, []);
 
-  // ── Live clock — refreshes every 60 s so exposure countdown ticks down ───────
+  // ── Live clock — refreshes every 60 s ────────────────────────────────────────
   useEffect(() => {
     const id = setInterval(() => setNowTime(nowMin()), 60_000);
     return () => clearInterval(id);
   }, []);
 
   // ── Live listener: high-priority unresolved job cards → blocks trains ─────────
-  // Any task with isJobCard=true, priority=high, status!=completed, and a
-  // sourceTrainId will ground that train — shown as blocked on cards & banner.
-  // Clears automatically when a job is marked complete in the Job Cards page.
   useEffect(() => {
     if (!authReady || !currentUser || !db) return;
     const q = query(
@@ -649,7 +748,6 @@ export default function Dashboard() {
       setBlockedTrainIds(new Set(jobs.map(j => j.sourceTrainId)));
     }, err => console.error('[job-block]', err));
 
-    // Separate snapshot for ALL job card tasks to count open ones (any priority)
     const unsubAll = onSnapshot(
       collection(db, 'tasks'),
       snap => {
@@ -666,7 +764,7 @@ export default function Dashboard() {
     return () => { unsub(); unsubAll(); };
   }, [authReady, currentUser]);
 
-  // ── Step 2: subscribe to master data — only after auth is confirmed ─────────
+  // ── Step 2: subscribe to master data ─────────────────────────────────────────
   useEffect(() => {
     if (!authReady || !currentUser || !db) {
       setLoadingMaster(false);
@@ -708,7 +806,7 @@ export default function Dashboard() {
     };
   }, [authReady, currentUser]);
 
-  // ── Step 3: fetch daily data — only after auth is confirmed ─────────────────
+  // ── Step 3: fetch daily data ──────────────────────────────────────────────────
   useEffect(() => {
     if (!authReady || !currentUser || !db || !selectedDates.length) {
       setDailyDocs([]);
@@ -766,15 +864,13 @@ export default function Dashboard() {
   const toggleDate = (d) =>
     setSelectedDates(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d].sort());
 
-  // ── Build per-train data view — REAL DATA ONLY, no seed/fake fallbacks ────────
+  // ── Build per-train data view ─────────────────────────────────────────────────
   const trainView = useMemo(() => {
     const latestDate = selectedDates[selectedDates.length - 1] || todayStr();
 
     return TRAIN_IDS.map(tid => {
-      // Master data: real Firestore record only, or null if not yet submitted
       const master = masterData[tid] || null;
 
-      // Daily data: only real Firestore records for this train across selected dates
       const allDaily = dailyDocs
         .filter(d => d.train_id === tid)
         .sort((a, b) => a.date.localeCompare(b.date));
@@ -784,8 +880,13 @@ export default function Dashboard() {
       const fitness = master?.fitness_certificates || null;
       const isFit = fitness ? isFitnessValidOn(fitness, latestDate) : false;
 
-      const activeBranding = (master?.branding_priorities || []).filter(b =>
-        selectedDates.some(d => isBrandingActiveOn(b, d))
+      // ✅ Fix #6: activeBranding uses the same canonical latestDate as the stat card,
+      // so the "Active Branding" KPI and the per-card badge are always in sync.
+      const brandingPriorities = master?.branding_priorities || [];
+      const activeBranding = brandingPriorities.filter(b =>
+        selectedDates.length > 0
+          ? selectedDates.some(d => isBrandingActiveOn(b, d))
+          : isBrandingActiveOn(b, latestDate)
       );
 
       return {
@@ -796,8 +897,8 @@ export default function Dashboard() {
         fitness,
         isFit,
         activeBranding,
-        hasData: allDaily.length > 0,          // false means no daily data uploaded yet
-        hasMaster: master !== null,             // false means no fitness/branding submitted yet
+        hasData: allDaily.length > 0,
+        hasMaster: master !== null,
         latestMileage: latestDaily?.mileage?.current_mileage_km ?? null,
         depot: latestDaily?.stabling_geometry?.yard ?? null,
         openJobs: allDaily.flatMap(d => d.job_card_status || []).filter(j => j.status === 'Open').length,
@@ -805,7 +906,7 @@ export default function Dashboard() {
     });
   }, [masterData, dailyDocs, selectedDates]);
 
-  // ── Build all trips for live exposure countdown ───────────────────────────
+  // ── Build all trips for live exposure countdown ───────────────────────────────
   const allTrips = useMemo(() => {
     const latestDate = selectedDates[selectedDates.length - 1] || todayStr();
     const fleet = TRAIN_IDS.map(tid => ({
@@ -815,13 +916,13 @@ export default function Dashboard() {
     return buildAllTrips(fleet);
   }, [masterData, selectedDates]);
 
-  // ── Fleet-wide expiry alerts (shown at top of dashboard) ─────────────────────
+  // ── Fleet-wide expiry alerts ──────────────────────────────────────────────────
   const fleetAlerts = useMemo(() => {
     if (dismissedAlertTypes.includes('all')) return [];
     const today = todayStr();
     const alerts = [];
     trainView.forEach(({ trainId, master }) => {
-      if (!master) return; // no data uploaded for this train yet — skip
+      if (!master) return;
       if (master.fitness_certificates) {
         alerts.push(...checkCertAlerts(master.fitness_certificates, today, trainId));
       }
@@ -841,7 +942,7 @@ export default function Dashboard() {
     return true;
   }), [trainView, search, filterDepot, filterFitness]);
 
-  // ── Fleet mileage chart — only trains that have real data ────────────────────
+  // ── Fleet mileage chart ───────────────────────────────────────────────────────
   const fleetChart = useMemo(() => selectedDates.map(d => {
     const trainsWithData = trainView.filter(t => {
       const dd = t.allDaily.find(x => x.date === d);
@@ -859,14 +960,12 @@ export default function Dashboard() {
   const fitCount = trainView.filter(t => t.isFit && !blockedTrainIds.has(t.trainId)).length;
   const jobBlockedCount = blockedTrainIds.size;
   const totalOpenJobs = allOpenTasksCount;
+
+  // ✅ Fix #6: activeBrandingCount now matches the trainView activeBranding logic exactly
   const activeBrandingCount = trainView.filter(t => t.activeBranding.length > 0).length;
 
   const selectedTrainData = selectedTrain ? trainView.find(t => t.trainId === selectedTrain) : null;
 
-  // Block render until Firebase Auth session is restored.
-  // Without this gate: fleetAlerts runs while masterData is still {},
-  // trainView entries have master=null → "Cannot read properties of null".
-  // Firestore queries also fire before auth token is attached → permissions error.
   if (!authReady) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -917,7 +1016,7 @@ export default function Dashboard() {
       <div className="flex h-[calc(100vh-64px)] overflow-hidden">
         {/* Sidebar */}
         {sidebarOpen && (
-          <div className="w-64 flex-shrink-0 border-r bg-white overflow-y-auto p-4 space-y-4">
+          <div className="w-64 shrink-0 border-r bg-white overflow-y-auto p-4 space-y-4">
             <DatePicker selectedDates={selectedDates} onToggle={toggleDate} onClear={() => setSelectedDates([])} />
 
             <div className="bg-white border rounded-2xl p-4">
@@ -962,17 +1061,11 @@ export default function Dashboard() {
 
         {/* Main */}
         <div className="flex-1 overflow-y-auto p-6 space-y-4">
-          {/* Alerts */}
-          {/* <AlertBanner
-            alerts={fleetAlerts}
-            onDismiss={(type) => setDismissedAlertTypes(prev => [...prev, type])}
-          /> */}
-
-          {/* Job Block Banner — only when trains are grounded */}
+          {/* Job Block Banner */}
           {blockedJobs.length > 0 && (
             <div className="bg-red-600 text-white rounded-2xl shadow-lg overflow-hidden">
               <div className="flex items-start gap-3 p-4">
-                <ShieldAlert className="h-6 w-6 flex-shrink-0 mt-0.5 animate-pulse" />
+                <ShieldAlert className="h-6 w-6 shrink-0 mt-0.5 animate-pulse" />
                 <div className="flex-1 min-w-0">
                   <p className="font-bold text-base">
                     🚨 {blockedTrainIds.size} Train{blockedTrainIds.size > 1 ? 's' : ''} Grounded — High Priority Job{blockedJobs.length > 1 ? 's' : ''} Unresolved
@@ -1072,7 +1165,6 @@ export default function Dashboard() {
                         ${isJobBlocked ? 'border-red-400 ring-2 ring-red-200 bg-red-50/40' : hasAlert ? 'border-red-200 ring-1 ring-red-100' : 'hover:border-slate-300'}
                         ${!hasData && !hasMaster ? 'opacity-60' : ''}`}>
 
-                      {/* Pulsing dot: red for job-blocked, orange for cert alert */}
                       {(isJobBlocked || hasAlert) && (
                         <span className={`absolute top-3 right-3 w-2.5 h-2.5 rounded-full animate-pulse ${isJobBlocked ? 'bg-red-600' : 'bg-red-500'}`} />
                       )}
@@ -1089,7 +1181,6 @@ export default function Dashboard() {
                         <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-gray-500 transition ml-auto" />
                       </div>
 
-                      {/* Grounded warning strip */}
                       {isJobBlocked && (
                         <div className="mb-2 bg-red-100 border border-red-200 rounded-lg px-2.5 py-1.5 text-xs">
                           <p className="font-bold text-red-700 flex items-center gap-1">

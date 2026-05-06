@@ -18,6 +18,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { STATIONS, nameToSlug } from '../lib/scheduleEngine';
+import { HiSpeakerphone } from "react-icons/hi";
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -140,8 +141,8 @@ function PricingTab() {
           return (
             <div key={slug}
               className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 transition-colors ${isTerminus
-                  ? 'border-blue-200 bg-blue-50/60'
-                  : 'border-gray-200 bg-white hover:bg-gray-50'
+                ? 'border-blue-200 bg-blue-50/60'
+                : 'border-gray-200 bg-white hover:bg-gray-50'
                 }`}>
               <div className="flex-1 min-w-0">
                 <p className={`text-sm font-medium leading-tight truncate ${isTerminus ? 'text-blue-700' : 'text-gray-800'}`}>
@@ -397,8 +398,8 @@ function AllBookingsTab() {
         {['all', 'pending', 'approved', 'rejected', 'refunded'].map(f => (
           <button key={f} onClick={() => setFilter(f)}
             className={`px-3.5 py-1.5 rounded-full text-xs font-medium capitalize transition-colors ${filter === f
-                ? 'bg-blue-600 text-white shadow-sm'
-                : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300'
+              ? 'bg-blue-600 text-white shadow-sm'
+              : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300'
               }`}>
             {f}
           </button>
@@ -536,8 +537,8 @@ function AddAdTab() {
                 <p className="text-xs font-medium text-gray-800 truncate">{v.label}</p>
                 <div className="flex items-center gap-2 mt-0.5">
                   <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${v.source === 'admin'
-                      ? 'bg-gray-100 text-gray-500'
-                      : 'bg-blue-50 text-blue-600'
+                    ? 'bg-gray-100 text-gray-500'
+                    : 'bg-blue-50 text-blue-600'
                     }`}>
                     {v.source === 'admin' ? 'Admin' : 'Marketplace'}
                   </span>
@@ -613,7 +614,7 @@ export default function AdminAdsPage() {
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
           <div>
             <h1 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-              <span>📢</span> Ad Management
+              <span><HiSpeakerphone /></span> Ad Management
             </h1>
             <p className="text-xs text-gray-500 mt-0.5">Station advertising — pricing, approvals, and content</p>
           </div>
@@ -635,8 +636,8 @@ export default function AdminAdsPage() {
               key={i}
               onClick={() => setTab(i)}
               className={`flex items-center gap-1.5 whitespace-nowrap px-4 py-2 rounded-lg text-xs font-semibold transition-all ${tab === i
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100'
+                ? 'bg-blue-600 text-white shadow-sm'
+                : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100'
                 }`}
             >
               {tabLabel}

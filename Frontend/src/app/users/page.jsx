@@ -122,7 +122,7 @@ function AssignTaskModal({ user, onClose, onAssigned, currentUser }) {
                 <div className="p-6 space-y-4">
                     {err && (
                         <div className="flex items-center gap-2 text-sm text-red-400 bg-red-400/10 border border-red-400/20 rounded-lg p-3">
-                            <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+                            <AlertTriangle className="h-4 w-4 shrink-0" />
                             {err}
                         </div>
                     )}
@@ -266,7 +266,7 @@ function UserTasksPanel({ user, onClose }) {
                             <div key={t.id} className="bg-gray-50 border border-gray-200 rounded-xl p-4">
                                 <div className="flex items-start justify-between gap-2 mb-2">
                                     <p className="text-sm font-medium text-gray-900 leading-tight">{t.title}</p>
-                                    <div className="flex gap-1.5 flex-shrink-0">
+                                    <div className="flex gap-1.5 shrink-0">
                                         <Badge meta={PRIORITY_META[t.priority] || PRIORITY_META.medium} />
                                         <Badge meta={STATUS_META[t.status] || STATUS_META.pending} />
                                     </div>
@@ -309,7 +309,7 @@ function UserRow({ user, onBlock, onAssign, onViewTasks, taskCounts }) {
             {/* Main row */}
             <div className="flex items-center gap-4 p-4">
                 {/* Avatar */}
-                <div className={`h-10 w-10 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${isBlocked
+                <div className={`h-10 w-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${isBlocked
                     ? 'bg-red-500/20 text-red-400'
                     : 'bg-blue-500/20 text-blue-300'
                     }`}>
@@ -633,7 +633,7 @@ export default function UserManagementPage() {
                 {/* Error banner */}
                 {loadError && (
                     <div className="flex items-start gap-3 p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-sm text-red-400">
-                        <AlertTriangle className="h-5 w-5 flex-shrink-0 mt-0.5" />
+                        <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5" />
                         <div>
                             <p className="font-semibold mb-1">Failed to load users</p>
                             <p className="text-xs opacity-80">{loadError}</p>

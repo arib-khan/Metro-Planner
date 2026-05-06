@@ -40,12 +40,12 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center group cursor-pointer">
-              <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-r from-gray-900 to-gray-700 rounded-lg blur opacity-30 group-hover:opacity-50 transition-opacity"></div>
-                <Train className="h-8 w-8 text-gray-900 relative z-10 group-hover:scale-110 transition-transform" />
-              </div>
+              <Link href="/" className="flex items-center">
+                <img src="/KMRLXRailOptima.png" alt="KMRL & Rail Optima"
+                  className="h-10 w-auto object-contain" style={{ maxWidth: '200px' }} />
+              </Link>
               <div className="ml-3">
-                <h1 className="text-lg font-bold text-gray-900 tracking-tight">RailSync Pro</h1>
+                <h1 className="text-lg font-bold text-gray-900 tracking-tight">RailOptima</h1>
                 <p className="text-xs text-gray-500 font-medium">Intelligent Rail Management</p>
               </div>
             </div>
@@ -382,10 +382,13 @@ export default function LandingPage() {
             <div className="flex items-center mb-6 md:mb-0">
               <div className="relative">
                 <div className="absolute inset-0 bg-gradient-to-r from-gray-700 to-gray-600 rounded-lg blur opacity-30"></div>
-                <Train className="h-8 w-8 relative z-10" />
+                <Link href="/" className="flex items-center">
+                  <img src="/KMRLXRailOptima.png" alt="KMRL & Rail Optima"
+                    className="h-10 w-auto object-contain" style={{ maxWidth: '200px' }} />
+                </Link>
               </div>
               <div className="ml-3">
-                <h3 className="text-lg font-bold">RailSync Pro</h3>
+                <h3 className="text-lg font-bold">RailOptima</h3>
                 <p className="text-sm text-gray-400">Intelligent Railway Management</p>
               </div>
             </div>

@@ -444,14 +444,39 @@ const WhatsAppIntegration = () => {
                 <div className="mt-4 p-3 bg-white rounded border border-green-200">
                   <p className="text-xs font-semibold text-gray-700 mb-2">📱 Send messages in this format:</p>
                   <pre className="text-xs text-gray-600 whitespace-pre-wrap font-mono bg-gray-50 p-3 rounded overflow-x-auto">
-                    {`Train Set: KMRC-012
+                    {`Train Set: KMRL-12
 Depot: Muttom
 Current Mileage: 288650 km
+
+--- Fitness Certificates ---
 Fitness Status: Fit for Service
+Rolling Stock: 2025-12-31
+Signalling: 2025-11-30
+Telecom: 2026-03-15
+
+--- Branding ---
 Branding: Election Awareness (Priority: High)
-Cleaning Slot: 23:00–23:45
+Branding From: 2025-05-01
+Branding To: 2025-07-31
+
+--- Cleaning ---
+Cleaning Slot: 23:00-23:45
+Cleaning Type: Deep Clean
+
+--- Stabling ---
+Track: 7
+Berth: B2
+Orientation: UP
+
+--- Job Card ---
+Job Card: JC-1001 – Brake Inspection – Open
+
 Reported By: Ground Staff A`}
                   </pre>
+                  <p className="text-xs text-gray-500 mt-2">
+                    💡 You can send a partial message — only fill the sections you need to update.
+                    Every field except <strong>Train Set</strong> is optional.
+                  </p>
                 </div>
               </div>
             </div>

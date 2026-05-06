@@ -50,7 +50,7 @@ export default function SignupPage() {
     try {
       await signup(formData.email, formData.password);
       setSuccess(true);
-      
+
       // Show biometric setup option if available
       if (biometricAvailable) {
         setShowBiometricSetup(true);
@@ -62,7 +62,7 @@ export default function SignupPage() {
       }
     } catch (error) {
       let errorMessage = 'Failed to create account. Please try again.';
-      
+
       if (error.code === 'auth/email-already-in-use') {
         errorMessage = 'An account with this email already exists.';
       } else if (error.code === 'auth/invalid-email') {
@@ -70,7 +70,7 @@ export default function SignupPage() {
       } else if (error.code === 'auth/weak-password') {
         errorMessage = 'Password is too weak. Please use a stronger password.';
       }
-      
+
       setError(errorMessage);
       setLoading(false);
     }
@@ -82,30 +82,30 @@ export default function SignupPage() {
 
     try {
       await registerBiometric(formData.email);
-      
+
       // Store password securely (in production, use secure token-based auth)
       localStorage.setItem(`pwd_${formData.email}`, formData.password);
-      
+
       setBiometricSetupComplete(true);
-      
+
       // Redirect after showing success message
       setTimeout(() => {
         router.push('/login');
       }, 2000);
     } catch (error) {
       console.error('Biometric setup error:', error);
-      
+
       let errorMessage = 'Failed to set up fingerprint authentication. You can enable it later from settings.';
-      
+
       if (error.name === 'NotAllowedError') {
         errorMessage = 'Fingerprint setup was cancelled. You can enable it later from settings.';
       } else if (error.message.includes('not available')) {
         errorMessage = 'Biometric authentication is not available on this device.';
       }
-      
+
       setError(errorMessage);
       setBiometricSetupLoading(false);
-      
+
       // Still redirect to login after error
       setTimeout(() => {
         router.push('/login');
@@ -119,7 +119,7 @@ export default function SignupPage() {
 
   if (success && !showBiometricSetup) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center px-4">
+      <div className="min-h-screen bg-linear-to-br from-gray-50 to-gray-100 flex items-center justify-center px-4">
         <div className="max-w-md w-full bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
           <div className="mb-6">
             <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
@@ -128,7 +128,7 @@ export default function SignupPage() {
           </div>
           <h2 className="text-2xl font-bold text-gray-900 mb-4">Account Created!</h2>
           <p className="text-gray-600 mb-6">
-            We've sent a verification email to <strong>{formData.email}</strong>. 
+            We&apos;ve sent a verification email to <strong>{formData.email}</strong>.
             Please check your inbox and click the verification link to activate your account.
           </p>
           <p className="text-sm text-gray-500 mb-6">
@@ -146,7 +146,7 @@ export default function SignupPage() {
 
   if (success && showBiometricSetup) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center px-4">
+      <div className="min-h-screen bg-linear-to-br from-gray-50 to-gray-100 flex items-center justify-center px-4">
         <div className="max-w-md w-full bg-white rounded-lg shadow-sm border border-gray-200 p-8">
           <div className="text-center mb-6">
             <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
@@ -160,7 +160,7 @@ export default function SignupPage() {
               {biometricSetupComplete ? 'Fingerprint Enabled!' : 'Enable Fingerprint Login?'}
             </h2>
             <p className="text-gray-600">
-              {biometricSetupComplete 
+              {biometricSetupComplete
                 ? 'You can now use your fingerprint to log in quickly and securely.'
                 : 'Speed up your login process by enabling fingerprint authentication.'
               }
@@ -169,7 +169,7 @@ export default function SignupPage() {
 
           {error && (
             <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start">
-              <AlertCircle className="h-5 w-5 text-red-600 mr-3 flex-shrink-0 mt-0.5" />
+              <AlertCircle className="h-5 w-5 text-red-600 mr-3 shrink-0 mt-0.5" />
               <p className="text-sm text-red-600">{error}</p>
             </div>
           )}
@@ -179,15 +179,15 @@ export default function SignupPage() {
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <ul className="text-sm text-gray-700 space-y-2">
                   <li className="flex items-start">
-                    <CheckCircle className="h-4 w-4 text-blue-600 mr-2 flex-shrink-0 mt-0.5" />
+                    <CheckCircle className="h-4 w-4 text-blue-600 mr-2 shrink-0 mt-0.5" />
                     <span>Quick and secure login</span>
                   </li>
                   <li className="flex items-start">
-                    <CheckCircle className="h-4 w-4 text-blue-600 mr-2 flex-shrink-0 mt-0.5" />
+                    <CheckCircle className="h-4 w-4 text-blue-600 mr-2 shrink-0 mt-0.5" />
                     <span>No need to remember passwords</span>
                   </li>
                   <li className="flex items-start">
-                    <CheckCircle className="h-4 w-4 text-blue-600 mr-2 flex-shrink-0 mt-0.5" />
+                    <CheckCircle className="h-4 w-4 text-blue-600 mr-2 shrink-0 mt-0.5" />
                     <span>Enhanced security</span>
                   </li>
                 </ul>
@@ -230,7 +230,7 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center px-4 py-12">
+    <div className="min-h-screen bg-linear-to-br from-gray-50 to-gray-100 flex items-center justify-center px-4 py-12">
       <div className="max-w-md w-full">
         {/* Header */}
         <div className="text-center mb-8">
@@ -251,16 +251,16 @@ export default function SignupPage() {
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
           {error && (
             <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start">
-              <AlertCircle className="h-5 w-5 text-red-600 mr-3 flex-shrink-0 mt-0.5" />
+              <AlertCircle className="h-5 w-5 text-red-600 mr-3 shrink-0 mt-0.5" />
               <p className="text-sm text-red-600">{error}</p>
             </div>
           )}
 
           {biometricAvailable && (
             <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg flex items-start">
-              <Fingerprint className="h-5 w-5 text-blue-600 mr-3 flex-shrink-0 mt-0.5" />
+              <Fingerprint className="h-5 w-5 text-blue-600 mr-3 shrink-0 mt-0.5" />
               <p className="text-sm text-blue-700">
-                Fingerprint authentication available! You'll be able to enable it after signing up.
+                Fingerprint authentication available! You&apos;ll be able to enable it after signing up.
               </p>
             </div>
           )}
