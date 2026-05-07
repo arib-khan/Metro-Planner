@@ -12,11 +12,6 @@
 import Razorpay from 'razorpay';
 import { NextResponse } from 'next/server';
 
-const razorpay = new Razorpay({
-    key_id: process.env.RAZORPAY_KEY_ID,
-    key_secret: process.env.RAZORPAY_KEY_SECRET,
-});
-
 export async function POST(req) {
     try {
         const { amount, currency = 'INR' } = await req.json();
@@ -24,6 +19,12 @@ export async function POST(req) {
         if (!amount || amount < 100) {
             return NextResponse.json({ error: 'Invalid amount' }, { status: 400 });
         }
+
+        // Initialised here (not at module level) so env vars are available at runtime
+        const razorpay = new Razorpay({
+            key_id: process.env.RAZORPAY_KEY_ID,
+            key_secret: process.env.RAZORPAY_KEY_SECRET,
+        });
 
         const order = await razorpay.orders.create({
             amount,          // in paise
