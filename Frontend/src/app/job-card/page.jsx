@@ -15,6 +15,7 @@ import {
     Zap, ShieldAlert, CircleDot, Circle, CircleCheck,
     TriangleAlert, RefreshCw
 } from 'lucide-react';
+import Link from 'next/link';
 
 const API_URL = process.env.NEXT_PUBLIC_WHATSAPP_API || 'http://localhost:5000';
 
@@ -558,6 +559,11 @@ export default function JobCardsPage() {
                         </p>
                     </div>
                     <div className="flex gap-2">
+                        <Link href="/cleaning-teams">
+                            <button className="flex items-center gap-2 px-4 py-2.5 border border-gray-200 bg-white text-gray-700 rounded-xl font-medium hover:bg-gray-50 text-sm">
+                                cleaning team
+                            </button>
+                        </Link>
                         <button onClick={() => loadTasks(activeCsv)}
                             className="flex items-center gap-2 px-4 py-2.5 border border-gray-200 bg-white text-gray-700 rounded-xl font-medium hover:bg-gray-50 text-sm">
                             <RefreshCw className="h-4 w-4" /> Refresh
@@ -568,6 +574,7 @@ export default function JobCardsPage() {
                                 <MessageSquare className="h-4 w-4" /> Send WhatsApp
                             </button>
                         )}
+
                     </div>
                 </div>
 
@@ -619,87 +626,93 @@ export default function JobCardsPage() {
                 </div>
 
                 {/* Stats */}
-                {stats && (
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                        {[
-                            { label: 'Total', value: stats.total, color: 'border-gray-200 text-gray-900' },
-                            { label: 'Pending', value: stats.pending, color: 'border-slate-200 text-slate-700' },
-                            { label: 'In Progress', value: stats.inProgress, color: 'border-blue-200 text-blue-700' },
-                            { label: 'Completed', value: stats.completed, color: 'border-green-200 text-green-700' },
-                            {
-                                label: 'High Pending', value: stats.highPending, sub: 'Train blocked',
-                                color: stats.highPending > 0 ? 'border-red-300 text-red-700 bg-red-50' : 'border-gray-200 text-gray-900'
-                            },
-                        ].map(s => (
-                            <div key={s.label} className={`bg-white rounded-xl border p-5 ${s.color}`}>
-                                <p className="text-3xl font-bold">{s.value}</p>
-                                <p className="text-sm font-medium mt-1">{s.label}</p>
-                                {s.sub && <p className="text-xs mt-0.5 opacity-70">{s.sub}</p>}
-                            </div>
-                        ))}
-                    </div>
-                )}
+                {
+                    stats && (
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                            {[
+                                { label: 'Total', value: stats.total, color: 'border-gray-200 text-gray-900' },
+                                { label: 'Pending', value: stats.pending, color: 'border-slate-200 text-slate-700' },
+                                { label: 'In Progress', value: stats.inProgress, color: 'border-blue-200 text-blue-700' },
+                                { label: 'Completed', value: stats.completed, color: 'border-green-200 text-green-700' },
+                                {
+                                    label: 'High Pending', value: stats.highPending, sub: 'Train blocked',
+                                    color: stats.highPending > 0 ? 'border-red-300 text-red-700 bg-red-50' : 'border-gray-200 text-gray-900'
+                                },
+                            ].map(s => (
+                                <div key={s.label} className={`bg-white rounded-xl border p-5 ${s.color}`}>
+                                    <p className="text-3xl font-bold">{s.value}</p>
+                                    <p className="text-sm font-medium mt-1">{s.label}</p>
+                                    {s.sub && <p className="text-xs mt-0.5 opacity-70">{s.sub}</p>}
+                                </div>
+                            ))}
+                        </div>
+                    )
+                }
 
                 {/* Task list */}
-                {activeCsv && (
-                    <div className="bg-white rounded-xl border border-gray-200">
-                        <div className="flex flex-col sm:flex-row gap-3 p-4 border-b border-gray-100">
-                            <div className="relative flex-1">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                                <input value={search} onChange={e => setSearch(e.target.value)}
-                                    placeholder="Search job ID, train, description, user…"
-                                    className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" />
-                            </div>
-                            <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
-                                className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900">
-                                <option value="All">All Status</option>
-                                <option value="Pending">Pending</option>
-                                <option value="In Progress">In Progress</option>
-                                <option value="Completed">Completed</option>
-                            </select>
-                            <select value={filterPriority} onChange={e => setFilterPriority(e.target.value)}
-                                className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900">
-                                <option value="All">All Priority</option>
-                                <option value="High">High</option>
-                                <option value="Medium">Medium</option>
-                                <option value="Low">Low</option>
-                            </select>
-                            <p className="text-xs text-gray-400 self-center whitespace-nowrap">
-                                {displayTasks.length} of {batchTasks.length}
-                            </p>
-                        </div>
-
-                        <div className="p-4 space-y-2">
-                            {loadingTasks ? (
-                                <div className="text-center py-12"><Loader2 className="h-8 w-8 animate-spin mx-auto text-gray-300" /></div>
-                            ) : displayTasks.length === 0 ? (
-                                <div className="text-center py-12 text-gray-400">
-                                    <FileText className="h-12 w-12 mx-auto mb-3 opacity-20" />
-                                    <p className="text-sm">No tasks match your filters</p>
+                {
+                    activeCsv && (
+                        <div className="bg-white rounded-xl border border-gray-200">
+                            <div className="flex flex-col sm:flex-row gap-3 p-4 border-b border-gray-100">
+                                <div className="relative flex-1">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                    <input value={search} onChange={e => setSearch(e.target.value)}
+                                        placeholder="Search job ID, train, description, user…"
+                                        className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" />
                                 </div>
-                            ) : (
-                                displayTasks.map(task => (
-                                    <JobCardRow
-                                        key={task.id}
-                                        task={task}
-                                        onStatusChange={handleStatusChange}
-                                        updating={updatingTask}
-                                    />
-                                ))
-                            )}
+                                <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
+                                    className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900">
+                                    <option value="All">All Status</option>
+                                    <option value="Pending">Pending</option>
+                                    <option value="In Progress">In Progress</option>
+                                    <option value="Completed">Completed</option>
+                                </select>
+                                <select value={filterPriority} onChange={e => setFilterPriority(e.target.value)}
+                                    className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900">
+                                    <option value="All">All Priority</option>
+                                    <option value="High">High</option>
+                                    <option value="Medium">Medium</option>
+                                    <option value="Low">Low</option>
+                                </select>
+                                <p className="text-xs text-gray-400 self-center whitespace-nowrap">
+                                    {displayTasks.length} of {batchTasks.length}
+                                </p>
+                            </div>
+
+                            <div className="p-4 space-y-2">
+                                {loadingTasks ? (
+                                    <div className="text-center py-12"><Loader2 className="h-8 w-8 animate-spin mx-auto text-gray-300" /></div>
+                                ) : displayTasks.length === 0 ? (
+                                    <div className="text-center py-12 text-gray-400">
+                                        <FileText className="h-12 w-12 mx-auto mb-3 opacity-20" />
+                                        <p className="text-sm">No tasks match your filters</p>
+                                    </div>
+                                ) : (
+                                    displayTasks.map(task => (
+                                        <JobCardRow
+                                            key={task.id}
+                                            task={task}
+                                            onStatusChange={handleStatusChange}
+                                            updating={updatingTask}
+                                        />
+                                    ))
+                                )}
+                            </div>
                         </div>
-                    </div>
-                )}
+                    )
+                }
 
-                {!loadingTasks && !tasks.length && (
-                    <div className="text-center py-16 text-gray-400">
-                        <FileText className="h-16 w-16 mx-auto mb-4 opacity-20" />
-                        <p className="text-lg font-medium text-gray-500">No job cards yet</p>
-                        <p className="text-sm mt-1">Drop a CSV file above to get started</p>
-                    </div>
-                )}
+                {
+                    !loadingTasks && !tasks.length && (
+                        <div className="text-center py-16 text-gray-400">
+                            <FileText className="h-16 w-16 mx-auto mb-4 opacity-20" />
+                            <p className="text-lg font-medium text-gray-500">No job cards yet</p>
+                            <p className="text-sm mt-1">Drop a CSV file above to get started</p>
+                        </div>
+                    )
+                }
 
-            </main>
-        </div>
+            </main >
+        </div >
     );
 }

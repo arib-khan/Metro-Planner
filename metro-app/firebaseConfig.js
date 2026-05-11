@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { initializeAuth, getReactNativePersistence } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { initializeFirestore, getFirestore, CACHE_SIZE_UNLIMITED } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const firebaseConfig = {
@@ -14,32 +14,34 @@ const firebaseConfig = {
   measurementId: "G-KM4ZZYF42F"
 };
 
-// const firebaseConfig = {
-//   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-//   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-//   databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL,
-//   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-//   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-//   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-//   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-//   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
-// };
-
 const app = initializeApp(firebaseConfig);
 
-// FIX: Wrap in try/catch — on New Architecture, initializeAuth can throw
-// "already initialized" if fast-refresh re-runs the module.
+// Auth — guard against hot-reload double init
 let auth;
 try {
   auth = initializeAuth(app, {
     persistence: getReactNativePersistence(AsyncStorage),
   });
 } catch (e) {
-  // Already initialized (e.g. hot reload) — grab the existing instance
   const { getAuth } = require('firebase/auth');
   auth = getAuth(app);
 }
 
-const db = getFirestore(app);
+// Firestore — FIX: replace getFirestore() with initializeFirestore()
+// getFirestore() uses IndexedDB persistence by default. React Native has no
+// IndexedDB, so Firestore uses a shared lock that throws:
+//   "Failed to obtain primary lease for action 'Backfill Indexes'"
+// initializeFirestore() with experimentalForceLongPolling skips IndexedDB
+// entirely — no lease conflict on any React Native / Expo build.
+let db;
+try {
+  db = initializeFirestore(app, {
+    experimentalForceLongPolling: true,
+    cacheSizeBytes: CACHE_SIZE_UNLIMITED,
+  });
+} catch (e) {
+  // Already initialized on hot reload — grab existing instance
+  db = getFirestore(app);
+}
 
 export { auth, db };

@@ -29,7 +29,8 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts",
     "**/*.ts",
-    "**/*.tsx"
+    "**/*.tsx",
+    "src/app/utils/useCleaningTeams.js"
   ],
   "exclude": [
     "node_modules"
